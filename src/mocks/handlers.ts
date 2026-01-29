@@ -198,8 +198,95 @@ export const handlers = [
 
   http.get('/api/users/:id', async ({ params }) => {
     await delay(30);
-    const user = mockUsers.users.find((u: { id: number }) => u.id === Number(params.id));
-    return HttpResponse.json(apiResponse(user || mockUsers.currentUser));
+    const userId = Number(params.id);
+    const user = mockUserDetails[userId];
+    if (user) {
+      return HttpResponse.json(apiResponse({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        status: user.status,
+        systemRole: user.currentRole,
+        courseRoles: [],
+        tenantId: user.tenantId,
+        organizationName: user.departmentName,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        lastLoginAt: '2026-01-28T10:00:00',
+        phone: '010-1234-5678',
+        department: user.departmentName,
+        position: user.position,
+        stats: {
+          totalCourses: 12,
+          completedCourses: 8,
+          inProgressCourses: 3,
+          totalLearningTime: 45,
+          averageScore: 87,
+        },
+        enrollments: [
+          { id: 1, courseTitle: 'React 기초부터 실전까지', progress: 100, status: 'COMPLETED', enrolledAt: '2025-12-20', completedAt: '2026-01-15' },
+          { id: 2, courseTitle: 'TypeScript 마스터 클래스', progress: 75, status: 'IN_PROGRESS', enrolledAt: '2026-01-01' },
+        ],
+        activityLogs: [
+          { id: 1, action: '로그인', description: '시스템에 로그인했습니다.', timestamp: '2026-01-28 09:15:00', type: 'login' },
+          { id: 2, action: '강의 수강', description: 'React 실전 프로젝트 - 챕터 5 완료', timestamp: '2026-01-28 10:30:00', type: 'course' },
+        ],
+      }));
+    }
+    const fallbackUser = mockUsers.users.find((u: { id: number }) => u.id === userId);
+    return HttpResponse.json(apiResponse(fallbackUser || mockUsers.currentUser));
+  }),
+
+  // User roles
+  http.get('/api/users/:id/roles', async ({ params }) => {
+    await delay(30);
+    const userId = Number(params.id);
+    const user = mockUserDetails[userId];
+    return HttpResponse.json(apiResponse(user?.roles || ['USER']));
+  }),
+
+  // Update user
+  http.put('/api/users/:id', async ({ params, request }) => {
+    await delay(50);
+    const userId = Number(params.id);
+    const body = (await request.json()) as Record<string, unknown>;
+    const user = mockUserDetails[userId];
+    if (!user) {
+      return HttpResponse.json(
+        errorResponse('사용자를 찾을 수 없습니다.', 'USER_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({ ...user, ...body, updatedAt: new Date().toISOString() }));
+  }),
+
+  // Update user roles
+  http.put('/api/users/:id/roles', async ({ params, request }) => {
+    await delay(50);
+    const userId = Number(params.id);
+    const body = (await request.json()) as { roles: string[] };
+    const user = mockUserDetails[userId];
+    if (!user) {
+      return HttpResponse.json(
+        errorResponse('사용자를 찾을 수 없습니다.', 'USER_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({ ...user, roles: body.roles }));
+  }),
+
+  // Delete user
+  http.delete('/api/users/:id', async ({ params }) => {
+    await delay(50);
+    const userId = Number(params.id);
+    const user = mockUserDetails[userId];
+    if (!user) {
+      return HttpResponse.json(
+        errorResponse('사용자를 찾을 수 없습니다.', 'USER_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({ message: '사용자가 삭제되었습니다.' }));
   }),
 
   // ========== Public APIs ==========
