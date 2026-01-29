@@ -2,6 +2,8 @@ import { http, HttpResponse, delay } from 'msw';
 import {
   mockUsers,
   mockAuth,
+  mockCredentials,
+  mockUserDetails,
   mockCourses,
   mockCourseTimes,
   mockCategories,
@@ -40,11 +42,49 @@ const paginatedResponse = <T>(items: T[], page = 0, size = 10) => {
   };
 };
 
+// Error response helper
+const errorResponse = (message: string, code: string = 'ERROR') => ({
+  success: false,
+  data: null,
+  error: { code, message },
+});
+
 export const handlers = [
   // ========== Auth ==========
-  http.post('*/api/auth/login', async () => {
+  http.post('*/api/auth/login', async ({ request }) => {
     await delay(300);
-    return HttpResponse.json(apiResponse(mockAuth.loginResponse));
+
+    try {
+      const body = await request.json() as { email: string; password: string };
+      const { email, password } = body;
+
+      // 계정 검증
+      const credential = mockCredentials[email];
+      if (!credential || credential.password !== password) {
+        return HttpResponse.json(
+          errorResponse('이메일 또는 비밀번호가 올바르지 않습니다.', 'INVALID_CREDENTIALS'),
+          { status: 401 }
+        );
+      }
+
+      // 사용자 정보 조회
+      const user = mockUserDetails[credential.userId];
+      if (!user) {
+        return HttpResponse.json(
+          errorResponse('사용자를 찾을 수 없습니다.', 'USER_NOT_FOUND'),
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json(apiResponse({
+        accessToken: `mock-access-token-${user.id}-${Date.now()}`,
+        refreshToken: `mock-refresh-token-${user.id}-${Date.now()}`,
+        expiresIn: 900000,
+        user,
+      }));
+    } catch {
+      return HttpResponse.json(apiResponse(mockAuth.loginResponse));
+    }
   }),
 
   http.post('*/api/auth/register', async () => {

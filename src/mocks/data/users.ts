@@ -1,6 +1,22 @@
 // Mock user data
-export const mockUsers = {
-  currentUser: {
+
+// 테스트 계정 목록 (비밀번호 공통: 1q2w3e4r!)
+// admin@demo.com - 일반 관리자
+// user@demo.com - 일반 사용자
+// ta@demo.com - 테넌트 관리자 (TA)
+// sa@demo.com - 시스템 관리자 (SA)
+
+const COMMON_PASSWORD = '1q2w3e4r!';
+
+export const mockCredentials: Record<string, { password: string; userId: number }> = {
+  'admin@demo.com': { password: COMMON_PASSWORD, userId: 1 },
+  'user@demo.com': { password: COMMON_PASSWORD, userId: 2 },
+  'ta@demo.com': { password: COMMON_PASSWORD, userId: 3 },
+  'sa@demo.com': { password: COMMON_PASSWORD, userId: 4 },
+};
+
+export const mockUserDetails: Record<number, typeof mockUsers.currentUser> = {
+  1: {
     id: 1,
     email: 'admin@demo.com',
     name: '관리자',
@@ -15,6 +31,55 @@ export const mockUsers = {
     createdAt: '2024-01-01T00:00:00',
     updatedAt: '2024-01-01T00:00:00',
   },
+  2: {
+    id: 2,
+    email: 'user@demo.com',
+    name: '홍길동',
+    profileImageUrl: null,
+    status: 'ACTIVE',
+    roles: ['USER'],
+    currentRole: 'USER',
+    tenantId: 1,
+    departmentId: 2,
+    departmentName: '마케팅팀',
+    position: '사원',
+    createdAt: '2024-01-02T00:00:00',
+    updatedAt: '2024-01-02T00:00:00',
+  },
+  3: {
+    id: 3,
+    email: 'ta@demo.com',
+    name: '테넌트 관리자',
+    profileImageUrl: null,
+    status: 'ACTIVE',
+    roles: ['TENANT_ADMIN'],
+    currentRole: 'TENANT_ADMIN',
+    tenantId: 1,
+    departmentId: 1,
+    departmentName: '개발팀',
+    position: '관리자',
+    createdAt: '2024-01-03T00:00:00',
+    updatedAt: '2024-01-03T00:00:00',
+  },
+  4: {
+    id: 4,
+    email: 'sa@demo.com',
+    name: '시스템 관리자',
+    profileImageUrl: null,
+    status: 'ACTIVE',
+    roles: ['SYSTEM_ADMIN'],
+    currentRole: 'SYSTEM_ADMIN',
+    tenantId: null, // SA는 tenantId가 없음
+    departmentId: null,
+    departmentName: null,
+    position: '시스템 관리자',
+    createdAt: '2024-01-01T00:00:00',
+    updatedAt: '2024-01-01T00:00:00',
+  },
+};
+
+export const mockUsers = {
+  currentUser: mockUserDetails[1],
   users: [
     {
       id: 1,
@@ -27,7 +92,7 @@ export const mockUsers = {
     },
     {
       id: 2,
-      email: 'user1@demo.com',
+      email: 'user@demo.com',
       name: '홍길동',
       status: 'ACTIVE',
       roles: ['USER'],
@@ -36,12 +101,21 @@ export const mockUsers = {
     },
     {
       id: 3,
-      email: 'user2@demo.com',
-      name: '김철수',
+      email: 'ta@demo.com',
+      name: '테넌트 관리자',
       status: 'ACTIVE',
-      roles: ['USER'],
-      departmentName: '영업팀',
+      roles: ['TENANT_ADMIN'],
+      departmentName: '개발팀',
       createdAt: '2024-01-03T00:00:00',
+    },
+    {
+      id: 4,
+      email: 'sa@demo.com',
+      name: '시스템 관리자',
+      status: 'ACTIVE',
+      roles: ['SYSTEM_ADMIN'],
+      departmentName: null,
+      createdAt: '2024-01-01T00:00:00',
     },
   ],
   learningStats: {

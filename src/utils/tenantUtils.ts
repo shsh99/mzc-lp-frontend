@@ -48,6 +48,17 @@ export function extractSubdomainFromPath(): string | null {
 }
 
 /**
+ * 플랫폼 도메인 목록 (테넌트로 인식하지 않음)
+ * Vercel, Netlify 등 배포 플랫폼 도메인 포함
+ */
+const PLATFORM_DOMAINS = [
+  'vercel.app',
+  'netlify.app',
+  'pages.dev',  // Cloudflare Pages
+  'github.io',
+];
+
+/**
  * 현재 호스트네임 또는 경로에서 테넌트 식별자 추출
  *
  * 예시:
@@ -55,6 +66,7 @@ export function extractSubdomainFromPath(): string | null {
  * - company.com → { type: 'customDomain', identifier: 'company.com' }
  * - localhost:3000/mzc/tu/b2c → { type: 'subdomain', identifier: 'mzc' } (경로 기반)
  * - localhost:3000 → null (개발 환경, 기본 테넌트)
+ * - xxx.vercel.app → null (Vercel 배포, 기본 테넌트)
  */
 export function extractTenantIdentifier(): TenantIdentifier | null {
   const hostname = window.location.hostname;
@@ -69,6 +81,17 @@ export function extractTenantIdentifier(): TenantIdentifier | null {
         type: isCustomDomain ? 'customDomain' : 'subdomain',
         identifier: pathSubdomain
       };
+    }
+    return null; // 기본 브랜딩 사용
+  }
+
+  // 플랫폼 도메인 (Vercel, Netlify 등) - 기본 브랜딩 사용
+  const isPlatformDomain = PLATFORM_DOMAINS.some(domain => hostname.endsWith(`.${domain}`));
+  if (isPlatformDomain) {
+    // 경로 기반 서브도메인 확인 (예: /mzc/tu/b2c)
+    const pathSubdomain = extractSubdomainFromPath();
+    if (pathSubdomain) {
+      return { type: 'subdomain', identifier: pathSubdomain };
     }
     return null; // 기본 브랜딩 사용
   }
