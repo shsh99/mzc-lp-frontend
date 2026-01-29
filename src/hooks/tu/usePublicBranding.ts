@@ -24,7 +24,7 @@ export function usePublicBranding(
       if (!identifier) {
         // identifier가 없으면 기본 브랜딩 사용
         return Promise.resolve({
-          tenantName: 'MZC Learn',
+          tenantName: 'MZC LMS',
           logoUrl: null,
           darkLogoUrl: null,
           faviconUrl: null,

@@ -19,7 +19,7 @@ const TenantBrandingContext = createContext<TenantBrandingContextValue | undefin
 
 /** 기본 브랜딩 (SA 등 tenantId가 없는 사용자용) */
 const DEFAULT_BRANDING: PublicBrandingResponse = {
-  tenantName: 'MZC Learning Platform',
+  tenantName: 'MZC LMS',
   primaryColor: designTokens.button.brand_default,
   secondaryColor: designTokens.button.brand_hover,
   logoUrl: null,

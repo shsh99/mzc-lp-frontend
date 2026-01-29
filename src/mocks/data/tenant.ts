@@ -3,7 +3,7 @@ export const mockTenantSettings = {
   branding: {
     id: 1,
     tenantId: 1,
-    siteName: 'MZC 러닝 플랫폼',
+    siteName: 'MZC LMS',
     logoUrl: null,
     faviconUrl: null,
     primaryColor: '#3B82F6',
@@ -15,7 +15,7 @@ export const mockTenantSettings = {
     headerTextColor: '#1F2937',
     footerBackgroundColor: '#1F2937',
     footerTextColor: '#FFFFFF',
-    footerText: '(c) 2024 MZC Learning Platform. All rights reserved.',
+    footerText: '(c) 2024 MZC LMS. All rights reserved.',
     customCss: null,
   },
   features: {
