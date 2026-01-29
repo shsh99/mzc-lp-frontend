@@ -15,7 +15,24 @@ export const mockCredentials: Record<string, { password: string; userId: number 
   'sa@demo.com': { password: COMMON_PASSWORD, userId: 4 },
 };
 
-export const mockUserDetails: Record<number, typeof mockUsers.currentUser> = {
+// 사용자 상세 정보 타입
+interface MockUserDetail {
+  id: number;
+  email: string;
+  name: string;
+  profileImageUrl: string | null;
+  status: string;
+  roles: string[];
+  currentRole: string;
+  tenantId: number | null;
+  departmentId: number | null;
+  departmentName: string | null;
+  position: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const mockUserDetails: Record<number, MockUserDetail> = {
   1: {
     id: 1,
     email: 'admin@demo.com',
@@ -78,6 +95,17 @@ export const mockUserDetails: Record<number, typeof mockUsers.currentUser> = {
   },
 };
 
+// 사용자 목록 타입
+interface MockUserListItem {
+  id: number;
+  email: string;
+  name: string;
+  status: string;
+  roles: string[];
+  departmentName: string | null;
+  createdAt: string;
+}
+
 export const mockUsers = {
   currentUser: mockUserDetails[1],
   users: [
@@ -117,7 +145,7 @@ export const mockUsers = {
       departmentName: null,
       createdAt: '2024-01-01T00:00:00',
     },
-  ],
+  ] as MockUserListItem[],
   learningStats: {
     totalEnrollments: 15,
     completedCourses: 8,
@@ -133,6 +161,6 @@ export const mockAuth = {
     accessToken: 'mock-access-token-12345',
     refreshToken: 'mock-refresh-token-67890',
     expiresIn: 900000,
-    user: mockUsers.currentUser,
+    user: mockUserDetails[1],
   },
 };

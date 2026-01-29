@@ -134,7 +134,7 @@ export const handlers = [
 
   http.get('*/api/users/:id', async ({ params }) => {
     await delay(200);
-    const user = mockUsers.users.find(u => u.id === Number(params.id));
+    const user = mockUsers.users.find((u: { id: number }) => u.id === Number(params.id));
     return HttpResponse.json(apiResponse(user || mockUsers.currentUser));
   }),
 
