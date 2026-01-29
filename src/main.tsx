@@ -17,19 +17,28 @@ async function enableMocking() {
   // Mock mode is enabled when VITE_MOCK_ENABLED is true or when API is not available
   const isMockEnabled = import.meta.env.VITE_MOCK_ENABLED === 'true';
 
+  console.log('[App] Mock mode:', isMockEnabled, 'API Base URL:', import.meta.env.VITE_API_BASE_URL);
+
   if (!isMockEnabled) {
+    console.log('[App] Mock mode disabled, skipping MSW initialization');
     return;
   }
 
-  const { worker } = await import('./mocks/browser');
+  try {
+    const { worker } = await import('./mocks/browser');
+    console.log('[App] MSW worker imported, starting...');
 
-  // Start the worker with onUnhandledRequest set to 'bypass' to allow real requests to pass through
-  return worker.start({
-    onUnhandledRequest: 'bypass',
-    serviceWorker: {
-      url: '/mockServiceWorker.js',
-    },
-  });
+    // Start the worker with onUnhandledRequest set to 'bypass' to allow real requests to pass through
+    await worker.start({
+      onUnhandledRequest: 'bypass',
+      serviceWorker: {
+        url: '/mockServiceWorker.js',
+      },
+    });
+    console.log('[App] MSW worker started successfully');
+  } catch (error) {
+    console.error('[App] MSW worker failed to start:', error);
+  }
 }
 
 enableMocking().then(() => {

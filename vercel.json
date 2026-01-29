@@ -1,5 +1,15 @@
 {
   "rewrites": [
+    { "source": "/mockServiceWorker.js", "destination": "/mockServiceWorker.js" },
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/mockServiceWorker.js",
+      "headers": [
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    }
   ]
 }
