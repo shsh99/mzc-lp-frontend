@@ -365,18 +365,38 @@ export const handlers = [
     await delay(30);
     return HttpResponse.json(apiResponse({
       subdomain: 'mzc',
+      fullSubdomainUrl: 'mzc.mzclearn.com',
       customDomain: null,
-      sslEnabled: true,
+      customDomainEnabled: false,
+      dnsInstructions: null,
     }));
   }),
 
   http.put('/api/ta/domain-settings/custom', async ({ request }) => {
     await delay(50);
     const body = (await request.json()) as Record<string, unknown>;
+    const customDomain = (body.customDomain as string) || null;
     return HttpResponse.json(apiResponse({
       subdomain: 'mzc',
-      customDomain: body.customDomain || null,
-      sslEnabled: true,
+      fullSubdomainUrl: 'mzc.mzclearn.com',
+      customDomain,
+      customDomainEnabled: !!customDomain,
+      dnsInstructions: customDomain ? {
+        recordType: 'CNAME',
+        recordName: customDomain,
+        recordValue: 'mzc.mzclearn.com',
+      } : null,
+    }));
+  }),
+
+  http.delete('/api/ta/domain-settings/custom', async () => {
+    await delay(50);
+    return HttpResponse.json(apiResponse({
+      subdomain: 'mzc',
+      fullSubdomainUrl: 'mzc.mzclearn.com',
+      customDomain: null,
+      customDomainEnabled: false,
+      dnsInstructions: null,
     }));
   }),
 
