@@ -348,10 +348,36 @@ export const handlers = [
     return HttpResponse.json(apiResponse({ ...mockTenantSettings.branding, ...body }));
   }),
 
+  http.put('/api/tenant/settings/branding/extended', async ({ request }) => {
+    await delay(50);
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(apiResponse({ ...mockTenantSettings.branding, ...body }));
+  }),
+
   http.put('/api/tenant/settings/design', async ({ request }) => {
     await delay(50);
     const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json(apiResponse({ ...mockTenantSettings.branding, ...body }));
+  }),
+
+  // TA Domain Settings
+  http.get('/api/ta/domain-settings', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({
+      subdomain: 'mzc',
+      customDomain: null,
+      sslEnabled: true,
+    }));
+  }),
+
+  http.put('/api/ta/domain-settings/custom', async ({ request }) => {
+    await delay(50);
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(apiResponse({
+      subdomain: 'mzc',
+      customDomain: body.customDomain || null,
+      sslEnabled: true,
+    }));
   }),
 
   http.put('/api/tenant/settings/features', async ({ request }) => {
