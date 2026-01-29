@@ -20,6 +20,7 @@ import {
   mockTADashboard,
   mockSADashboard,
   mockTUDashboard,
+  mockCODashboard,
 } from './data';
 
 // Helper to wrap response in ApiResponse format
@@ -256,31 +257,31 @@ export const handlers = [
   // Tenant Settings - PUT (수정)
   http.put('/api/tenant/settings/branding', async ({ request }) => {
     await delay(50);
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json(apiResponse({ ...mockTenantSettings.branding, ...body }));
   }),
 
   http.put('/api/tenant/settings/design', async ({ request }) => {
     await delay(50);
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json(apiResponse({ ...mockTenantSettings.branding, ...body }));
   }),
 
   http.put('/api/tenant/settings/features', async ({ request }) => {
     await delay(50);
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json(apiResponse({ ...mockTenantSettings.features, ...body }));
   }),
 
   http.put('/api/tenant/settings/layout', async ({ request }) => {
     await delay(50);
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json(apiResponse({ ...mockTenantSettings.layout, ...body }));
   }),
 
   http.put('/api/tenant/settings/navigation', async ({ request }) => {
     await delay(50);
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>[];
     return HttpResponse.json(apiResponse(body));
   }),
 
@@ -390,14 +391,28 @@ export const handlers = [
   }),
 
   // ========== Dashboard ==========
+  // TA Dashboard (TENANT_ADMIN)
   http.get('/api/admin/dashboard/kpi', async () => {
     await delay(50);
-    return HttpResponse.json(apiResponse(mockTADashboard.kpi));
+    // 새 구조 응답: userStats, programStats, enrollmentStats, dailyTrend
+    return HttpResponse.json(apiResponse({
+      userStats: mockTADashboard.userStats,
+      programStats: mockTADashboard.programStats,
+      enrollmentStats: mockTADashboard.enrollmentStats,
+      dailyTrend: mockTADashboard.dailyTrend,
+    }));
   }),
 
+  // SA Dashboard (SYSTEM_ADMIN)
   http.get('/api/sa/dashboard', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse(mockSADashboard));
+  }),
+
+  // CO Dashboard (OPERATOR)
+  http.get('/api/operator/dashboard/tasks', async () => {
+    await delay(50);
+    return HttpResponse.json(apiResponse(mockCODashboard));
   }),
 
   // ========== TU Dashboard ==========

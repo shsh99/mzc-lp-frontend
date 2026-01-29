@@ -1,14 +1,102 @@
 // Mock dashboard data
+
+// ========== SA Dashboard (SYSTEM_ADMIN) ==========
+// GET /api/sa/dashboard
+export const mockSADashboard = {
+  tenantStats: {
+    total: 3,
+    active: 3,
+    pending: 0,
+    suspended: 0,
+    terminated: 0,
+    byPlan: {
+      BASIC: 0,
+      PRO: 1,
+      ENTERPRISE: 2,
+    },
+  },
+  userStats: {
+    total: 590,
+    active: 580,
+    suspended: 5,
+    withdrawn: 5,
+  },
+  recentTenants: [
+    {
+      id: 3,
+      code: 'HYUNDAI_EDU',
+      name: '현대 교육원',
+      status: 'ACTIVE',
+      plan: 'PRO',
+      createdAt: '2025-12-15T00:00:00',
+    },
+    {
+      id: 2,
+      code: 'SAMSUNG_LC',
+      name: '삼성 러닝센터',
+      status: 'ACTIVE',
+      plan: 'ENTERPRISE',
+      createdAt: '2025-12-10T00:00:00',
+    },
+    {
+      id: 1,
+      code: 'MZC_ACADEMY',
+      name: 'MZC 아카데미',
+      status: 'ACTIVE',
+      plan: 'ENTERPRISE',
+      createdAt: '2025-12-01T00:00:00',
+    },
+  ],
+};
+
+// ========== TA Dashboard (TENANT_ADMIN) ==========
+// GET /api/admin/dashboard/kpi
 export const mockTADashboard = {
+  userStats: {
+    total: 156,
+    active: 142,
+    inactive: 8,
+    suspended: 3,
+    withdrawn: 3,
+    newInPeriod: 12,
+  },
+  programStats: {
+    total: 45,
+    draft: 5,
+    pending: 3,
+    approved: 35,
+    rejected: 1,
+    closed: 1,
+  },
+  enrollmentStats: {
+    totalEnrollments: 1234,
+    byStatus: {
+      enrolled: 456,
+      completed: 678,
+      dropped: 45,
+      failed: 55,
+    },
+    completionRate: 72.5,
+  },
+  dailyTrend: [
+    { date: '2026-01-24', enrollments: 15, completions: 8 },
+    { date: '2026-01-25', enrollments: 22, completions: 12 },
+    { date: '2026-01-26', enrollments: 18, completions: 10 },
+    { date: '2026-01-27', enrollments: 25, completions: 15 },
+    { date: '2026-01-28', enrollments: 30, completions: 18 },
+    { date: '2026-01-29', enrollments: 28, completions: 20 },
+    { date: '2026-01-30', enrollments: 35, completions: 22 },
+  ],
+  // 하위 호환용 (기존 코드에서 사용하는 경우)
   kpi: {
-    totalUsers: 1234,
-    activeUsers: 856,
+    totalUsers: 156,
+    activeUsers: 142,
     totalCourses: 45,
-    totalEnrollments: 3456,
+    totalEnrollments: 1234,
     completionRate: 72.5,
     averageRating: 4.6,
     revenueThisMonth: 12500000,
-    newUsersThisMonth: 156,
+    newUsersThisMonth: 12,
   },
   recentActivities: [
     { id: 1, type: 'ENROLLMENT', message: '홍길동님이 React 기초부터 실전까지 과정에 등록했습니다.', createdAt: '2026-01-28T15:30:00' },
@@ -26,25 +114,60 @@ export const mockTADashboard = {
   ],
 };
 
-export const mockSADashboard = {
-  totalTenants: 12,
-  activeTenants: 10,
-  totalUsers: 15678,
-  totalCourses: 456,
-  totalRevenue: 125000000,
-  tenantStats: [
-    { tenantId: 1, name: 'Demo Company', users: 1234, courses: 45, status: 'ACTIVE' },
-    { tenantId: 2, name: 'Tech Corp', users: 2345, courses: 67, status: 'ACTIVE' },
-    { tenantId: 3, name: 'Edu Institute', users: 3456, courses: 89, status: 'ACTIVE' },
-  ],
-  systemHealth: {
-    apiLatency: 45,
-    errorRate: 0.02,
-    uptime: 99.98,
-    activeConnections: 234,
+// ========== CO Dashboard (OPERATOR) ==========
+// GET /api/operator/dashboard/tasks
+export const mockCODashboard = {
+  pendingTasks: {
+    programsPendingApproval: 3,
+    courseTimesNeedingInstructor: 2,
   },
+  courseTimeStats: {
+    byStatus: {
+      draft: 5,
+      recruiting: 8,
+      ongoing: 12,
+      closed: 15,
+      archived: 5,
+    },
+    byDeliveryType: {
+      online: 20,
+      offline: 10,
+      blended: 8,
+      live: 7,
+    },
+    freeVsPaid: {
+      free: 15,
+      paid: 30,
+    },
+    total: 45,
+  },
+  enrollmentStats: {
+    totalEnrollments: 1234,
+    byStatus: {
+      enrolled: 456,
+      completed: 678,
+      dropped: 45,
+      failed: 55,
+    },
+    byType: {
+      voluntary: 800,
+      mandatory: 434,
+    },
+    completionRate: 72.5,
+    averageCapacityUtilization: 78.3,
+  },
+  dailyTrend: [
+    { date: '2026-01-24', enrollments: 15 },
+    { date: '2026-01-25', enrollments: 22 },
+    { date: '2026-01-26', enrollments: 18 },
+    { date: '2026-01-27', enrollments: 25 },
+    { date: '2026-01-28', enrollments: 30 },
+    { date: '2026-01-29', enrollments: 28 },
+    { date: '2026-01-30', enrollments: 35 },
+  ],
 };
 
+// ========== TU Dashboard (USER) ==========
 export const mockTUDashboard = {
   myLearning: {
     inProgressCourses: 3,
@@ -70,8 +193,8 @@ export const mockTUDashboard = {
     },
   ],
   upcomingDeadlines: [
-    { enrollmentId: 1, courseName: 'React 기초부터 실전까지', deadline: '2026-02-31', daysLeft: 64 },
-    { enrollmentId: 2, courseName: 'TypeScript 마스터 클래스', deadline: '2026-03-15', daysLeft: 79 },
+    { enrollmentId: 1, courseName: 'React 기초부터 실전까지', deadline: '2026-02-28', daysLeft: 29 },
+    { enrollmentId: 2, courseName: 'TypeScript 마스터 클래스', deadline: '2026-03-15', daysLeft: 44 },
   ],
   recommendedCourses: [
     {
