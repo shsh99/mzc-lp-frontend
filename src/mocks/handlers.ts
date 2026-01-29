@@ -80,8 +80,11 @@ export const handlers = [
         );
       }
 
+      const token = `mock-access-token-${user.id}-${Date.now()}`;
+      console.log('[MSW] Login success - User:', user.email, 'Role:', user.currentRole, 'Token:', token);
+
       return HttpResponse.json(apiResponse({
-        accessToken: `mock-access-token-${user.id}-${Date.now()}`,
+        accessToken: token,
         refreshToken: `mock-refresh-token-${user.id}-${Date.now()}`,
         expiresIn: 900000,
         user,
@@ -120,11 +123,17 @@ export const handlers = [
 
     // Authorization 헤더에서 토큰 추출
     const authHeader = request.headers.get('Authorization');
+    console.log('[MSW] /api/users/me - Authorization:', authHeader);
+
     // 토큰 형식: mock-access-token-{userId}-{timestamp}
     const tokenMatch = authHeader?.match(/mock-access-token-(\d+)-/);
+    console.log('[MSW] /api/users/me - Token match:', tokenMatch);
+
     if (tokenMatch) {
       const userId = parseInt(tokenMatch[1], 10);
       const user = mockUserDetails[userId];
+      console.log('[MSW] /api/users/me - Found user:', user?.email, 'role:', user?.currentRole);
+
       if (user) {
         // API 응답 형식에 맞게 변환 (userId 필드 사용)
         return HttpResponse.json(apiResponse({
@@ -147,6 +156,7 @@ export const handlers = [
     }
 
     // 토큰이 없거나 파싱 실패시 기본 사용자 반환
+    console.log('[MSW] /api/users/me - Fallback to default user:', mockUsers.currentUser.email);
     return HttpResponse.json(apiResponse({
       userId: mockUsers.currentUser.id,
       email: mockUsers.currentUser.email,
