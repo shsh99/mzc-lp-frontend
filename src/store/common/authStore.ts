@@ -45,22 +45,7 @@ export const useAuthStore = create<AuthState>()(
       currentRole: null,
 
       setAuth: (user, accessToken, refreshToken, expiresIn, currentRole) => {
-        // SA가 테넌트 경로에서 setAuth를 호출하면 sessionStorage에 토큰 백업
-        const pathname = window.location.pathname;
-        const isSystemAdmin = !user.tenantId;
-        const isTenantPath = !pathname.startsWith('/sa') && !pathname.startsWith('/auth');
-
-        if (isSystemAdmin && isTenantPath && pathname !== '/') {
-          console.log('[AuthStore] SA attempting to access tenant path, backing up token:', pathname);
-          sessionStorage.setItem('sa_backup_token', JSON.stringify({
-            accessToken,
-            refreshToken,
-            user,
-          }));
-          // 토큰을 설정하지 않고 리턴
-          return;
-        }
-
+        // 항상 인증 상태 저장 (리다이렉트는 로그인 훅에서 처리)
         set({
           user,
           accessToken,
@@ -136,34 +121,9 @@ export const useAuthStore = create<AuthState>()(
         currentRole: state.currentRole,
       }),
       onRehydrateStorage: () => (state) => {
-        if (!state) return;
-
-        // localStorage에서 복원된 후 SA가 테넌트 경로에 있으면 자동 로그아웃
-        const pathname = window.location.pathname;
-        const isSystemAdmin = state.isAuthenticated && !state.user?.tenantId;
-        const isTenantPath = !pathname.startsWith('/sa') && !pathname.startsWith('/auth') && pathname !== '/';
-
-        if (isSystemAdmin && isTenantPath) {
-          console.log('[AuthStore] Rehydrated: SA on tenant path, backing up and logging out:', pathname);
-
-          // sessionStorage에 토큰 백업
-          if (state.accessToken && state.refreshToken && state.user) {
-            sessionStorage.setItem('sa_backup_token', JSON.stringify({
-              accessToken: state.accessToken,
-              refreshToken: state.refreshToken,
-              user: state.user,
-            }));
-            console.log('[AuthStore] Token backed up to sessionStorage');
-          }
-
-          // 로그아웃
-          state.user = null;
-          state.accessToken = null;
-          state.refreshToken = null;
-          state.isAuthenticated = false;
-          state.tokenExpiresAt = null;
-          state.currentRole = null;
-          console.log('[AuthStore] Logged out');
+        // 상태 복원 완료 후 로깅
+        if (state?.isAuthenticated) {
+          console.log('[AuthStore] Rehydrated:', state.user?.email, 'role:', state.user?.role);
         }
       },
     }

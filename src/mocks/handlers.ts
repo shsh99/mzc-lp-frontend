@@ -55,7 +55,7 @@ const errorResponse = (message: string, code: string = 'ERROR') => ({
 
 export const handlers = [
   // ========== Auth ==========
-  http.post('*/api/auth/login', async ({ request }) => {
+  http.post('**/api/auth/login', async ({ request }) => {
     await delay(50);
 
     try {
@@ -98,17 +98,17 @@ export const handlers = [
     }
   }),
 
-  http.post('*/api/auth/register', async () => {
+  http.post('**/api/auth/register', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse({ message: '회원가입이 완료되었습니다.' }));
   }),
 
-  http.post('*/api/auth/refresh', async () => {
+  http.post('**/api/auth/refresh', async () => {
     await delay(10);
     return HttpResponse.json(apiResponse(mockAuth.loginResponse));
   }),
 
-  http.post('*/api/auth/switch-role', async ({ request }) => {
+  http.post('**/api/auth/switch-role', async ({ request }) => {
     await delay(10);
     const body = await request.json() as { role: string };
     return HttpResponse.json(apiResponse({
@@ -118,7 +118,7 @@ export const handlers = [
   }),
 
   // ========== Users ==========
-  http.get('*/api/users/me', async ({ request }) => {
+  http.get('**/api/users/me', async ({ request }) => {
     await delay(30);
 
     // Authorization 헤더에서 토큰 추출
@@ -175,213 +175,213 @@ export const handlers = [
     }));
   }),
 
-  http.get('*/api/users/me/learning-stats', async () => {
+  http.get('**/api/users/me/learning-stats', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockUsers.learningStats));
   }),
 
-  http.get('*/api/users/me/enrollments', async () => {
+  http.get('**/api/users/me/enrollments', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(paginatedResponse(mockEnrollments)));
   }),
 
-  http.get('*/api/users/me/certificates', async () => {
+  http.get('**/api/users/me/certificates', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockCertificates));
   }),
 
-  http.get('*/api/users', async () => {
+  http.get('**/api/users', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(paginatedResponse(mockUsers.users)));
   }),
 
-  http.get('*/api/users/:id', async ({ params }) => {
+  http.get('**/api/users/:id', async ({ params }) => {
     await delay(30);
     const user = mockUsers.users.find((u: { id: number }) => u.id === Number(params.id));
     return HttpResponse.json(apiResponse(user || mockUsers.currentUser));
   }),
 
   // ========== Public APIs ==========
-  http.get('*/api/public/tenants/branding', async () => {
+  http.get('**/api/public/tenants/branding', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockTenantSettings.branding));
   }),
 
-  http.get('*/api/public/course-times', async () => {
+  http.get('**/api/public/course-times', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse(paginatedResponse(mockCourseTimes)));
   }),
 
   // ========== Tenant Settings ==========
-  http.get('*/api/tenant/settings/branding', async () => {
+  http.get('**/api/tenant/settings/branding', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockTenantSettings.branding));
   }),
 
-  http.get('*/api/tenant/settings/branding/extended', async () => {
+  http.get('**/api/tenant/settings/branding/extended', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockTenantSettings.branding));
   }),
 
-  http.get('*/api/tenant/settings/features', async () => {
+  http.get('**/api/tenant/settings/features', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockTenantSettings.features));
   }),
 
-  http.get('*/api/tenant/settings/features/public', async () => {
+  http.get('**/api/tenant/settings/features/public', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockTenantSettings.features));
   }),
 
-  http.get('*/api/tenant/settings/layout', async () => {
+  http.get('**/api/tenant/settings/layout', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockTenantSettings.layout));
   }),
 
-  http.get('*/api/tenant/settings/layout/public', async () => {
+  http.get('**/api/tenant/settings/layout/public', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockTenantSettings.layout));
   }),
 
-  http.get('*/api/tenant/settings/navigation', async () => {
+  http.get('**/api/tenant/settings/navigation', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockTenantSettings.navigation));
   }),
 
-  http.get('*/api/tenant/settings/navigation/public', async () => {
+  http.get('**/api/tenant/settings/navigation/public', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockTenantSettings.navigation));
   }),
 
   // ========== Banners ==========
-  http.get('*/api/banners', async () => {
+  http.get('**/api/banners', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockBanners));
   }),
 
-  http.get('*/api/banners/public/displayable', async () => {
+  http.get('**/api/banners/public/displayable', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockBanners.filter(b => b.isActive)));
   }),
 
   // ========== Categories ==========
-  http.get('*/api/categories', async () => {
+  http.get('**/api/categories', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockCategories));
   }),
 
-  http.get('*/api/tenant/categories', async () => {
+  http.get('**/api/tenant/categories', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockCategories));
   }),
 
-  http.get('*/api/tenant/categories/public', async () => {
+  http.get('**/api/tenant/categories/public', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockCategories));
   }),
 
   // ========== Courses ==========
-  http.get('*/api/courses', async () => {
+  http.get('**/api/courses', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse(paginatedResponse(mockCourses)));
   }),
 
-  http.get('*/api/courses/my', async () => {
+  http.get('**/api/courses/my', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(paginatedResponse(mockCourses.slice(0, 3))));
   }),
 
-  http.get('*/api/courses/:id', async ({ params }) => {
+  http.get('**/api/courses/:id', async ({ params }) => {
     await delay(30);
     const course = mockCourses.find(c => c.id === Number(params.id));
     return HttpResponse.json(apiResponse(course || mockCourses[0]));
   }),
 
   // ========== Course Times ==========
-  http.get('*/api/times', async () => {
+  http.get('**/api/times', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse(paginatedResponse(mockCourseTimes)));
   }),
 
-  http.get('*/api/times/:id', async ({ params }) => {
+  http.get('**/api/times/:id', async ({ params }) => {
     await delay(30);
     const time = mockCourseTimes.find(t => t.id === Number(params.id));
     return HttpResponse.json(apiResponse(time || mockCourseTimes[0]));
   }),
 
   // ========== Enrollments ==========
-  http.get('*/api/enrollments', async () => {
+  http.get('**/api/enrollments', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(paginatedResponse(mockEnrollments)));
   }),
 
-  http.get('*/api/enrollments/:id', async ({ params }) => {
+  http.get('**/api/enrollments/:id', async ({ params }) => {
     await delay(30);
     const enrollment = mockEnrollments.find(e => e.id === Number(params.id));
     return HttpResponse.json(apiResponse(enrollment || mockEnrollments[0]));
   }),
 
-  http.get('*/api/enrollments/:id/curriculum', async () => {
+  http.get('**/api/enrollments/:id/curriculum', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse(mockCurriculum));
   }),
 
-  http.post('*/api/enrollments', async () => {
+  http.post('**/api/enrollments', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse({ id: 100, message: '수강 신청이 완료되었습니다.' }));
   }),
 
   // ========== Certificates ==========
-  http.get('*/api/certificates', async () => {
+  http.get('**/api/certificates', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockCertificates));
   }),
 
   // ========== Tenant Notices ==========
-  http.get('*/api/tenant/notices', async () => {
+  http.get('**/api/tenant/notices', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(paginatedResponse(mockTenantNotices)));
   }),
 
-  http.get('*/api/tu/notices', async () => {
+  http.get('**/api/tu/notices', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(paginatedResponse(mockTenantNotices)));
   }),
 
-  http.get('*/api/tu/notices/count', async () => {
+  http.get('**/api/tu/notices/count', async () => {
     await delay(10);
     return HttpResponse.json(apiResponse({ count: mockTenantNotices.length }));
   }),
 
   // ========== Dashboard ==========
-  http.get('*/api/admin/dashboard/kpi', async () => {
+  http.get('**/api/admin/dashboard/kpi', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse(mockTADashboard.kpi));
   }),
 
-  http.get('*/api/sa/dashboard', async () => {
+  http.get('**/api/sa/dashboard', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse(mockSADashboard));
   }),
 
   // ========== TU Dashboard ==========
-  http.get('*/api/tu/dashboard', async () => {
+  http.get('**/api/tu/dashboard', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse(mockTUDashboard));
   }),
 
-  http.get('*/api/owners/me/stats', async () => {
+  http.get('**/api/owners/me/stats', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(mockTUDashboard.myLearning));
   }),
 
   // ========== Analytics ==========
-  http.get('*/api/admin/analytics/logs', async () => {
+  http.get('**/api/admin/analytics/logs', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(paginatedResponse([])));
   }),
 
-  http.get('*/api/admin/analytics/stats', async () => {
+  http.get('**/api/admin/analytics/stats', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse({
       totalViews: 12345,
@@ -390,34 +390,34 @@ export const handlers = [
     }));
   }),
 
-  http.get('*/api/sa/analytics/logs', async () => {
+  http.get('**/api/sa/analytics/logs', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(paginatedResponse([])));
   }),
 
   // ========== Wishlist & Cart ==========
-  http.get('*/api/wishlist', async () => {
+  http.get('**/api/wishlist', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse([]));
   }),
 
-  http.get('*/api/wishlist/count', async () => {
+  http.get('**/api/wishlist/count', async () => {
     await delay(10);
     return HttpResponse.json(apiResponse({ count: 0 }));
   }),
 
-  http.get('*/api/cart', async () => {
+  http.get('**/api/cart', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse([]));
   }),
 
-  http.get('*/api/cart/count', async () => {
+  http.get('**/api/cart/count', async () => {
     await delay(10);
     return HttpResponse.json(apiResponse({ count: 0 }));
   }),
 
   // ========== Community (테넌트별) ==========
-  http.get('*/api/community/posts', async ({ request }) => {
+  http.get('**/api/community/posts', async ({ request }) => {
     await delay(30);
     // 헤더에서 tenantId 추출 (실제로는 토큰에서 추출)
     const authHeader = request.headers.get('Authorization');
@@ -432,7 +432,7 @@ export const handlers = [
     return HttpResponse.json(apiResponse(paginatedResponse(posts)));
   }),
 
-  http.get('*/api/community/posts/:id', async ({ params }) => {
+  http.get('**/api/community/posts/:id', async ({ params }) => {
     await delay(30);
     const post = mockCommunityPosts.find(p => p.id === Number(params.id));
     if (!post) {
@@ -444,7 +444,7 @@ export const handlers = [
     return HttpResponse.json(apiResponse(post));
   }),
 
-  http.post('*/api/community/posts', async ({ request }) => {
+  http.post('**/api/community/posts', async ({ request }) => {
     await delay(50);
     const body = await request.json() as { title: string; content: string; boardType?: string };
     const newPost = {
@@ -465,7 +465,7 @@ export const handlers = [
   }),
 
   // ========== Departments ==========
-  http.get('*/api/departments', async () => {
+  http.get('**/api/departments', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse([
       { id: 1, name: '개발팀', code: 'DEV', memberCount: 15 },
@@ -475,7 +475,7 @@ export const handlers = [
     ]));
   }),
 
-  http.get('*/api/departments/tree', async () => {
+  http.get('**/api/departments/tree', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse([
       {
@@ -494,12 +494,12 @@ export const handlers = [
   }),
 
   // ========== Tenants (SA) ==========
-  http.get('*/api/tenants', async () => {
+  http.get('**/api/tenants', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(paginatedResponse(mockTenants)));
   }),
 
-  http.get('*/api/tenants/:id', async ({ params }) => {
+  http.get('**/api/tenants/:id', async ({ params }) => {
     await delay(30);
     const tenant = mockTenants.find(t => t.id === Number(params.id));
     if (!tenant) {
@@ -511,7 +511,7 @@ export const handlers = [
     return HttpResponse.json(apiResponse(tenant));
   }),
 
-  http.post('*/api/tenants', async ({ request }) => {
+  http.post('**/api/tenants', async ({ request }) => {
     await delay(50);
     const body = await request.json() as { name: string; subdomain: string; plan?: string };
     const newTenant = {
@@ -534,7 +534,7 @@ export const handlers = [
     return HttpResponse.json(apiResponse(newTenant), { status: 201 });
   }),
 
-  http.put('*/api/tenants/:id', async ({ params, request }) => {
+  http.put('**/api/tenants/:id', async ({ params, request }) => {
     await delay(30);
     const tenant = mockTenants.find(t => t.id === Number(params.id));
     if (!tenant) {
@@ -548,7 +548,7 @@ export const handlers = [
     return HttpResponse.json(apiResponse(updatedTenant));
   }),
 
-  http.delete('*/api/tenants/:id', async ({ params }) => {
+  http.delete('**/api/tenants/:id', async ({ params }) => {
     await delay(30);
     const tenant = mockTenants.find(t => t.id === Number(params.id));
     if (!tenant) {
@@ -561,7 +561,7 @@ export const handlers = [
   }),
 
   // 테넌트별 사용자 목록 (SA용)
-  http.get('*/api/tenants/:id/users', async ({ params }) => {
+  http.get('**/api/tenants/:id/users', async ({ params }) => {
     await delay(30);
     const tenantId = Number(params.id);
     const users = getUsersByTenant(tenantId);
@@ -569,7 +569,7 @@ export const handlers = [
   }),
 
   // 테넌트 통계 (SA용)
-  http.get('*/api/tenants/:id/stats', async ({ params }) => {
+  http.get('**/api/tenants/:id/stats', async ({ params }) => {
     await delay(30);
     const tenant = mockTenants.find(t => t.id === Number(params.id));
     if (!tenant) {
