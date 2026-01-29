@@ -343,6 +343,11 @@ export const handlers = [
     return HttpResponse.json(apiResponse(paginatedResponse(mockTenantNotices)));
   }),
 
+  http.get('/api/ta/notices', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse(paginatedResponse(mockTenantNotices)));
+  }),
+
   http.get('/api/tu/notices', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse(paginatedResponse(mockTenantNotices)));
@@ -388,6 +393,11 @@ export const handlers = [
       uniqueUsers: 567,
       averageSessionTime: 1234,
     }));
+  }),
+
+  http.get('/api/admin/analytics/recent', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse([]));
   }),
 
   http.get('/api/sa/analytics/logs', async () => {
