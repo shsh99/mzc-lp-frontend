@@ -19,8 +19,8 @@ export const mockTenants = [
     maxUsers: 500,
     courseCount: 45,
     storageUsed: 85,
-    createdAt: '2024-01-01T00:00:00',
-    updatedAt: '2024-01-15T10:30:00',
+    createdAt: '2025-12-01T00:00:00',
+    updatedAt: '2026-01-15T10:30:00',
     branding: {
       primaryColor: '#6778ff',
       secondaryColor: '#a855f7',
@@ -41,8 +41,8 @@ export const mockTenants = [
     maxUsers: 500,
     courseCount: 78,
     storageUsed: 150,
-    createdAt: '2024-01-10T00:00:00',
-    updatedAt: '2024-02-01T14:20:00',
+    createdAt: '2025-12-10T00:00:00',
+    updatedAt: '2026-01-01T14:20:00',
     branding: {
       primaryColor: '#1428A0',
       secondaryColor: '#0077B6',
@@ -63,8 +63,8 @@ export const mockTenants = [
     maxUsers: 200,
     courseCount: 32,
     storageUsed: 25,
-    createdAt: '2024-02-01T00:00:00',
-    updatedAt: '2024-02-20T09:00:00',
+    createdAt: '2025-12-15T00:00:00',
+    updatedAt: '2026-01-20T09:00:00',
     branding: {
       primaryColor: '#002C5F',
       secondaryColor: '#00AAD2',
@@ -146,8 +146,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: null,
     departmentName: null,
     position: '시스템 관리자',
-    createdAt: '2024-01-01T00:00:00',
-    updatedAt: '2024-01-01T00:00:00',
+    createdAt: '2025-12-01T00:00:00',
+    updatedAt: '2025-12-01T00:00:00',
   },
 
   // ===== MZC 아카데미 (tenantId: 1, subdomain: mzc) =====
@@ -164,8 +164,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: 1,
     departmentName: '경영지원팀',
     position: '팀장',
-    createdAt: '2024-01-02T00:00:00',
-    updatedAt: '2024-01-02T00:00:00',
+    createdAt: '2025-12-02T00:00:00',
+    updatedAt: '2025-12-02T00:00:00',
   },
   11: {
     id: 11,
@@ -180,8 +180,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: 2,
     departmentName: '교육운영팀',
     position: '과장',
-    createdAt: '2024-01-03T00:00:00',
-    updatedAt: '2024-01-03T00:00:00',
+    createdAt: '2025-12-03T00:00:00',
+    updatedAt: '2025-12-03T00:00:00',
   },
   12: {
     id: 12,
@@ -196,8 +196,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: 3,
     departmentName: '교육개발팀',
     position: '수석강사',
-    createdAt: '2024-01-04T00:00:00',
-    updatedAt: '2024-01-04T00:00:00',
+    createdAt: '2025-12-04T00:00:00',
+    updatedAt: '2025-12-04T00:00:00',
   },
   13: {
     id: 13,
@@ -212,8 +212,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: 3,
     departmentName: '교육개발팀',
     position: '대리',
-    createdAt: '2024-01-05T00:00:00',
-    updatedAt: '2024-01-05T00:00:00',
+    createdAt: '2025-12-05T00:00:00',
+    updatedAt: '2025-12-05T00:00:00',
   },
   14: {
     id: 14,
@@ -228,8 +228,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: 4,
     departmentName: '개발팀',
     position: '사원',
-    createdAt: '2024-01-06T00:00:00',
-    updatedAt: '2024-01-06T00:00:00',
+    createdAt: '2025-12-06T00:00:00',
+    updatedAt: '2025-12-06T00:00:00',
   },
 
   // ===== 삼성 러닝센터 (tenantId: 2, subdomain: samsung) =====
@@ -246,8 +246,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: 10,
     departmentName: 'HR팀',
     position: '부장',
-    createdAt: '2024-01-10T00:00:00',
-    updatedAt: '2024-01-10T00:00:00',
+    createdAt: '2025-12-10T00:00:00',
+    updatedAt: '2025-12-10T00:00:00',
   },
   21: {
     id: 21,
@@ -262,8 +262,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: 11,
     departmentName: '교육센터',
     position: '과장',
-    createdAt: '2024-01-11T00:00:00',
-    updatedAt: '2024-01-11T00:00:00',
+    createdAt: '2025-12-11T00:00:00',
+    updatedAt: '2025-12-11T00:00:00',
   },
   22: {
     id: 22,
@@ -278,8 +278,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: 11,
     departmentName: '교육센터',
     position: '수석',
-    createdAt: '2024-01-12T00:00:00',
-    updatedAt: '2024-01-12T00:00:00',
+    createdAt: '2025-12-12T00:00:00',
+    updatedAt: '2025-12-12T00:00:00',
   },
   23: {
     id: 23,
@@ -294,8 +294,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: 12,
     departmentName: '콘텐츠팀',
     position: '대리',
-    createdAt: '2024-01-13T00:00:00',
-    updatedAt: '2024-01-13T00:00:00',
+    createdAt: '2025-12-13T00:00:00',
+    updatedAt: '2025-12-13T00:00:00',
   },
   24: {
     id: 24,
@@ -310,8 +310,8 @@ export const mockUserDetails: Record<number, MockUserDetail> = {
     departmentId: 13,
     departmentName: '무선사업부',
     position: '사원',
-    createdAt: '2024-01-14T00:00:00',
-    updatedAt: '2024-01-14T00:00:00',
+    createdAt: '2025-12-14T00:00:00',
+    updatedAt: '2025-12-14T00:00:00',
   },
 };
 
