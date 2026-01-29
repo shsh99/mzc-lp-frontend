@@ -86,8 +86,12 @@ export const handlers = [
         expiresIn: 900000,
         user,
       }));
-    } catch {
-      return HttpResponse.json(apiResponse(mockAuth.loginResponse));
+    } catch (error) {
+      console.error('[MSW] Login error:', error);
+      return HttpResponse.json(
+        errorResponse('로그인 처리 중 오류가 발생했습니다.', 'LOGIN_ERROR'),
+        { status: 500 }
+      );
     }
   }),
 

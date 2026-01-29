@@ -96,6 +96,11 @@ export function GlobalRoleSwitcher({
       ? userRoles
       : (userRole ? [userRole] : []);
 
+    // SYSTEM_ADMIN은 역할 스위처 사용 불가 (SA 전용 페이지만 사용)
+    if (rolesToCheck.includes('SYSTEM_ADMIN')) {
+      return roles; // 빈 배열 반환
+    }
+
     // 부여받은 역할만 표시 (USER 역할도 부여받은 경우에만)
     if (rolesToCheck.includes('USER')) {
       roles.push('USER');
