@@ -4,9 +4,13 @@ import {
   mockAuth,
   mockCredentials,
   mockUserDetails,
+  mockTenants,
+  getUsersByTenant,
   mockCourses,
   mockCourseTimes,
   mockCategories,
+  mockCommunityPosts,
+  getCommunityPostsByTenant,
   mockTenantSettings,
   mockBanners,
   mockTenantNotices,
@@ -107,9 +111,54 @@ export const handlers = [
   }),
 
   // ========== Users ==========
-  http.get('*/api/users/me', async () => {
+  http.get('*/api/users/me', async ({ request }) => {
     await delay(200);
-    return HttpResponse.json(apiResponse(mockUsers.currentUser));
+
+    // Authorization 헤더에서 토큰 추출
+    const authHeader = request.headers.get('Authorization');
+    // 토큰 형식: mock-access-token-{userId}-{timestamp}
+    const tokenMatch = authHeader?.match(/mock-access-token-(\d+)-/);
+    if (tokenMatch) {
+      const userId = parseInt(tokenMatch[1], 10);
+      const user = mockUserDetails[userId];
+      if (user) {
+        // API 응답 형식에 맞게 변환 (userId 필드 사용)
+        return HttpResponse.json(apiResponse({
+          userId: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.currentRole,
+          roles: user.roles,
+          status: user.status,
+          profileImageUrl: user.profileImageUrl,
+          tenantId: user.tenantId,
+          tenantSubdomain: user.tenantSubdomain,
+          departmentId: user.departmentId,
+          departmentName: user.departmentName,
+          position: user.position,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        }));
+      }
+    }
+
+    // 토큰이 없거나 파싱 실패시 기본 사용자 반환
+    return HttpResponse.json(apiResponse({
+      userId: mockUsers.currentUser.id,
+      email: mockUsers.currentUser.email,
+      name: mockUsers.currentUser.name,
+      role: mockUsers.currentUser.currentRole,
+      roles: mockUsers.currentUser.roles,
+      status: mockUsers.currentUser.status,
+      profileImageUrl: mockUsers.currentUser.profileImageUrl,
+      tenantId: mockUsers.currentUser.tenantId,
+      tenantSubdomain: mockUsers.currentUser.tenantSubdomain,
+      departmentId: mockUsers.currentUser.departmentId,
+      departmentName: mockUsers.currentUser.departmentName,
+      position: mockUsers.currentUser.position,
+      createdAt: mockUsers.currentUser.createdAt,
+      updatedAt: mockUsers.currentUser.updatedAt,
+    }));
   }),
 
   http.get('*/api/users/me/learning-stats', async () => {
@@ -353,6 +402,54 @@ export const handlers = [
     return HttpResponse.json(apiResponse({ count: 0 }));
   }),
 
+  // ========== Community (테넌트별) ==========
+  http.get('*/api/community/posts', async ({ request }) => {
+    await delay(200);
+    // 헤더에서 tenantId 추출 (실제로는 토큰에서 추출)
+    const authHeader = request.headers.get('Authorization');
+    const tokenMatch = authHeader?.match(/mock-access-token-(\d+)-/);
+    let tenantId: number | null = null;
+    if (tokenMatch) {
+      const userId = Number.parseInt(tokenMatch[1], 10);
+      const user = mockUserDetails[userId];
+      tenantId = user?.tenantId ?? null;
+    }
+    const posts = getCommunityPostsByTenant(tenantId);
+    return HttpResponse.json(apiResponse(paginatedResponse(posts)));
+  }),
+
+  http.get('*/api/community/posts/:id', async ({ params }) => {
+    await delay(200);
+    const post = mockCommunityPosts.find(p => p.id === Number(params.id));
+    if (!post) {
+      return HttpResponse.json(
+        errorResponse('게시글을 찾을 수 없습니다.', 'POST_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse(post));
+  }),
+
+  http.post('*/api/community/posts', async ({ request }) => {
+    await delay(300);
+    const body = await request.json() as { title: string; content: string; boardType?: string };
+    const newPost = {
+      id: mockCommunityPosts.length + 1,
+      tenantId: 1,
+      boardType: body.boardType || 'FREE',
+      title: body.title,
+      content: body.content,
+      authorId: 14,
+      authorName: '정학습',
+      viewCount: 0,
+      likeCount: 0,
+      commentCount: 0,
+      isPinned: false,
+      createdAt: new Date().toISOString(),
+    };
+    return HttpResponse.json(apiResponse(newPost), { status: 201 });
+  }),
+
   // ========== Departments ==========
   http.get('*/api/departments', async () => {
     await delay(200);
@@ -385,10 +482,94 @@ export const handlers = [
   // ========== Tenants (SA) ==========
   http.get('*/api/tenants', async () => {
     await delay(200);
-    return HttpResponse.json(apiResponse(paginatedResponse([
-      { id: 1, name: 'Demo Company', subdomain: 'demo', status: 'ACTIVE', userCount: 1234 },
-      { id: 2, name: 'Tech Corp', subdomain: 'tech', status: 'ACTIVE', userCount: 2345 },
-      { id: 3, name: 'Edu Institute', subdomain: 'edu', status: 'ACTIVE', userCount: 3456 },
-    ])));
+    return HttpResponse.json(apiResponse(paginatedResponse(mockTenants)));
+  }),
+
+  http.get('*/api/tenants/:id', async ({ params }) => {
+    await delay(200);
+    const tenant = mockTenants.find(t => t.id === Number(params.id));
+    if (!tenant) {
+      return HttpResponse.json(
+        errorResponse('테넌트를 찾을 수 없습니다.', 'TENANT_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse(tenant));
+  }),
+
+  http.post('*/api/tenants', async ({ request }) => {
+    await delay(300);
+    const body = await request.json() as { name: string; subdomain: string; plan?: string };
+    const newTenant = {
+      id: mockTenants.length + 1,
+      name: body.name,
+      subdomain: body.subdomain,
+      customDomain: null,
+      status: 'ACTIVE',
+      plan: body.plan || 'BASIC',
+      userCount: 0,
+      maxUsers: 100,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      branding: {
+        primaryColor: '#6778ff',
+        secondaryColor: '#a855f7',
+        logoUrl: null,
+      },
+    };
+    return HttpResponse.json(apiResponse(newTenant), { status: 201 });
+  }),
+
+  http.put('*/api/tenants/:id', async ({ params, request }) => {
+    await delay(200);
+    const tenant = mockTenants.find(t => t.id === Number(params.id));
+    if (!tenant) {
+      return HttpResponse.json(
+        errorResponse('테넌트를 찾을 수 없습니다.', 'TENANT_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    const body = await request.json() as Partial<typeof tenant>;
+    const updatedTenant = { ...tenant, ...body, updatedAt: new Date().toISOString() };
+    return HttpResponse.json(apiResponse(updatedTenant));
+  }),
+
+  http.delete('*/api/tenants/:id', async ({ params }) => {
+    await delay(200);
+    const tenant = mockTenants.find(t => t.id === Number(params.id));
+    if (!tenant) {
+      return HttpResponse.json(
+        errorResponse('테넌트를 찾을 수 없습니다.', 'TENANT_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({ message: '테넌트가 삭제되었습니다.' }));
+  }),
+
+  // 테넌트별 사용자 목록 (SA용)
+  http.get('*/api/tenants/:id/users', async ({ params }) => {
+    await delay(200);
+    const tenantId = Number(params.id);
+    const users = getUsersByTenant(tenantId);
+    return HttpResponse.json(apiResponse(paginatedResponse(users)));
+  }),
+
+  // 테넌트 통계 (SA용)
+  http.get('*/api/tenants/:id/stats', async ({ params }) => {
+    await delay(200);
+    const tenant = mockTenants.find(t => t.id === Number(params.id));
+    if (!tenant) {
+      return HttpResponse.json(
+        errorResponse('테넌트를 찾을 수 없습니다.', 'TENANT_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({
+      userCount: tenant.userCount,
+      maxUsers: tenant.maxUsers,
+      courseCount: 12,
+      activeEnrollments: 89,
+      completionRate: 72.5,
+    }));
   }),
 ];

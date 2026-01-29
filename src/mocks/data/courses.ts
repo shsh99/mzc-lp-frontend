@@ -1,14 +1,18 @@
-// Mock course data
-export const mockCourses = [
+// Mock course data with multi-tenant support
+
+// ========== MZC 아카데미 (tenantId: 1) 강의 ==========
+const mzcCourses = [
   {
     id: 1,
+    tenantId: 1,
     title: 'React 기초부터 실전까지',
     description: 'React의 기초 개념부터 실전 프로젝트까지 학습합니다.',
     thumbnailUrl: 'https://picsum.photos/seed/react/400/300',
     status: 'PUBLISHED',
     categoryId: 1,
     categoryName: '프로그래밍',
-    instructorName: '김강사',
+    instructorId: 12,
+    instructorName: '박강사',
     duration: 1200,
     totalItems: 24,
     level: 'BEGINNER',
@@ -20,13 +24,15 @@ export const mockCourses = [
   },
   {
     id: 2,
+    tenantId: 1,
     title: 'TypeScript 마스터 클래스',
     description: 'TypeScript를 활용한 타입 안전한 개발 방법을 학습합니다.',
     thumbnailUrl: 'https://picsum.photos/seed/typescript/400/300',
     status: 'PUBLISHED',
     categoryId: 1,
     categoryName: '프로그래밍',
-    instructorName: '이강사',
+    instructorId: 12,
+    instructorName: '박강사',
     duration: 900,
     totalItems: 18,
     level: 'INTERMEDIATE',
@@ -38,12 +44,14 @@ export const mockCourses = [
   },
   {
     id: 3,
+    tenantId: 1,
     title: 'AWS 클라우드 입문',
     description: 'AWS 클라우드 서비스의 기초를 학습합니다.',
     thumbnailUrl: 'https://picsum.photos/seed/aws/400/300',
     status: 'PUBLISHED',
     categoryId: 2,
     categoryName: '클라우드',
+    instructorId: 12,
     instructorName: '박강사',
     duration: 1500,
     totalItems: 30,
@@ -56,13 +64,15 @@ export const mockCourses = [
   },
   {
     id: 4,
+    tenantId: 1,
     title: 'Python 데이터 분석',
     description: 'Python을 활용한 데이터 분석 기법을 학습합니다.',
     thumbnailUrl: 'https://picsum.photos/seed/python/400/300',
     status: 'PUBLISHED',
     categoryId: 3,
     categoryName: '데이터 사이언스',
-    instructorName: '최강사',
+    instructorId: 12,
+    instructorName: '박강사',
     duration: 1800,
     totalItems: 36,
     level: 'INTERMEDIATE',
@@ -72,48 +82,108 @@ export const mockCourses = [
     enrollmentCount: 456,
     createdAt: '2024-02-15T00:00:00',
   },
+];
+
+// ========== 삼성 러닝센터 (tenantId: 2) 강의 ==========
+const samsungCourses = [
   {
-    id: 5,
-    title: 'UX/UI 디자인 기초',
-    description: '사용자 경험과 인터페이스 디자인의 기초를 학습합니다.',
-    thumbnailUrl: 'https://picsum.photos/seed/uxui/400/300',
-    status: 'PUBLISHED',
-    categoryId: 4,
-    categoryName: '디자인',
-    instructorName: '정강사',
-    duration: 600,
-    totalItems: 12,
-    level: 'BEGINNER',
-    price: 79000,
-    rating: 4.5,
-    reviewCount: 67,
-    enrollmentCount: 234,
-    createdAt: '2024-03-01T00:00:00',
-  },
-  {
-    id: 6,
-    title: '프로젝트 관리 실무',
-    description: '효과적인 프로젝트 관리 방법론을 학습합니다.',
-    thumbnailUrl: 'https://picsum.photos/seed/pm/400/300',
+    id: 101,
+    tenantId: 2,
+    title: '삼성 리더십 과정',
+    description: '삼성의 리더십 원칙과 실무 적용 방법을 학습합니다.',
+    thumbnailUrl: 'https://picsum.photos/seed/leadership/400/300',
     status: 'PUBLISHED',
     categoryId: 5,
-    categoryName: '비즈니스',
-    instructorName: '한강사',
-    duration: 480,
+    categoryName: '리더십',
+    instructorId: 22,
+    instructorName: '윤강사',
+    duration: 960,
     totalItems: 16,
     level: 'INTERMEDIATE',
-    price: 89000,
-    rating: 4.4,
-    reviewCount: 45,
-    enrollmentCount: 123,
-    createdAt: '2024-03-15T00:00:00',
+    price: 0,
+    rating: 4.9,
+    reviewCount: 567,
+    enrollmentCount: 2345,
+    createdAt: '2024-01-10T00:00:00',
+  },
+  {
+    id: 102,
+    tenantId: 2,
+    title: '디지털 트랜스포메이션 기초',
+    description: '디지털 전환의 핵심 개념과 전략을 학습합니다.',
+    thumbnailUrl: 'https://picsum.photos/seed/digital/400/300',
+    status: 'PUBLISHED',
+    categoryId: 6,
+    categoryName: 'DX',
+    instructorId: 22,
+    instructorName: '윤강사',
+    duration: 720,
+    totalItems: 12,
+    level: 'BEGINNER',
+    price: 0,
+    rating: 4.7,
+    reviewCount: 234,
+    enrollmentCount: 1890,
+    createdAt: '2024-01-20T00:00:00',
+  },
+  {
+    id: 103,
+    tenantId: 2,
+    title: '반도체 공정 이해',
+    description: '반도체 제조 공정의 전반적인 이해를 돕는 과정입니다.',
+    thumbnailUrl: 'https://picsum.photos/seed/semiconductor/400/300',
+    status: 'PUBLISHED',
+    categoryId: 7,
+    categoryName: '기술',
+    instructorId: 22,
+    instructorName: '윤강사',
+    duration: 1440,
+    totalItems: 24,
+    level: 'ADVANCED',
+    price: 0,
+    rating: 4.8,
+    reviewCount: 456,
+    enrollmentCount: 3456,
+    createdAt: '2024-02-01T00:00:00',
+  },
+  {
+    id: 104,
+    tenantId: 2,
+    title: '글로벌 비즈니스 커뮤니케이션',
+    description: '글로벌 환경에서의 효과적인 비즈니스 커뮤니케이션을 학습합니다.',
+    thumbnailUrl: 'https://picsum.photos/seed/global/400/300',
+    status: 'PUBLISHED',
+    categoryId: 8,
+    categoryName: '커뮤니케이션',
+    instructorId: 22,
+    instructorName: '윤강사',
+    duration: 600,
+    totalItems: 10,
+    level: 'INTERMEDIATE',
+    price: 0,
+    rating: 4.5,
+    reviewCount: 189,
+    enrollmentCount: 1234,
+    createdAt: '2024-02-15T00:00:00',
   },
 ];
 
-// CourseTimeCatalogResponse 형식에 맞춘 Mock 데이터
-export const mockCourseTimes = [
+// 전체 강의 목록
+export const mockCourses = [...mzcCourses, ...samsungCourses];
+
+// 테넌트별 강의 필터링 헬퍼
+export const getCoursesByTenant = (tenantId: number | null) => {
+  if (tenantId === null) {
+    return mockCourses; // SA는 전체 조회
+  }
+  return mockCourses.filter(course => course.tenantId === tenantId);
+};
+
+// ========== MZC 아카데미 차시 ==========
+const mzcCourseTimes = [
   {
     id: 1,
+    tenantId: 1,
     title: 'React 기초부터 실전까지 - 2024년 1기',
     status: 'RECRUITING',
     deliveryType: 'ONLINE',
@@ -141,8 +211,8 @@ export const mockCourseTimes = [
     },
     instructors: [
       {
-        id: 1,
-        name: '김강사',
+        id: 12,
+        name: '박강사',
         role: 'MAIN',
         profileImageUrl: 'https://picsum.photos/seed/instructor1/100/100',
       },
@@ -150,6 +220,7 @@ export const mockCourseTimes = [
   },
   {
     id: 2,
+    tenantId: 1,
     title: 'TypeScript 마스터 클래스 - 2024년 1기',
     status: 'RECRUITING',
     deliveryType: 'ONLINE',
@@ -177,8 +248,8 @@ export const mockCourseTimes = [
     },
     instructors: [
       {
-        id: 2,
-        name: '이강사',
+        id: 12,
+        name: '박강사',
         role: 'MAIN',
         profileImageUrl: 'https://picsum.photos/seed/instructor2/100/100',
       },
@@ -186,6 +257,7 @@ export const mockCourseTimes = [
   },
   {
     id: 3,
+    tenantId: 1,
     title: 'AWS 클라우드 입문 - 2024년 2기',
     status: 'ONGOING',
     deliveryType: 'BLENDED',
@@ -213,21 +285,16 @@ export const mockCourseTimes = [
     },
     instructors: [
       {
-        id: 3,
+        id: 12,
         name: '박강사',
         role: 'MAIN',
         profileImageUrl: 'https://picsum.photos/seed/instructor3/100/100',
-      },
-      {
-        id: 4,
-        name: '조교강사',
-        role: 'ASSISTANT',
-        profileImageUrl: null,
       },
     ],
   },
   {
     id: 4,
+    tenantId: 1,
     title: 'Python 데이터 분석 - 무료 체험반',
     status: 'RECRUITING',
     deliveryType: 'ONLINE',
@@ -255,92 +322,285 @@ export const mockCourseTimes = [
     },
     instructors: [
       {
-        id: 5,
-        name: '최강사',
+        id: 12,
+        name: '박강사',
         role: 'MAIN',
         profileImageUrl: 'https://picsum.photos/seed/instructor5/100/100',
       },
     ],
   },
+];
+
+// ========== 삼성 러닝센터 차시 ==========
+const samsungCourseTimes = [
   {
-    id: 5,
-    title: 'UX/UI 디자인 기초 - 2024년 1기',
+    id: 101,
+    tenantId: 2,
+    title: '삼성 리더십 과정 - 2024년 상반기',
     status: 'RECRUITING',
-    deliveryType: 'OFFLINE',
-    enrollmentMethod: 'FIRST_COME',
+    deliveryType: 'BLENDED',
+    enrollmentMethod: 'APPROVAL',
     isOnDemand: false,
-    enrollStartDate: '2024-04-01',
-    enrollEndDate: '2024-04-20',
-    classStartDate: '2024-05-01',
+    enrollStartDate: '2024-03-01',
+    enrollEndDate: '2024-03-20',
+    classStartDate: '2024-04-01',
     classEndDate: '2024-06-30',
-    capacity: 20,
-    currentEnrollment: 15,
-    availableSeats: 5,
-    price: '79000',
-    isFree: false,
+    capacity: 100,
+    currentEnrollment: 78,
+    availableSeats: 22,
+    price: '0',
+    isFree: true,
     program: {
-      id: 5,
-      title: 'UX/UI 디자인 기초',
-      description: '사용자 경험과 인터페이스 디자인의 기초를 학습합니다.',
-      thumbnailUrl: 'https://picsum.photos/seed/uxui/400/300',
-      level: 'BEGINNER',
-      type: 'OFFLINE',
-      estimatedHours: 10,
-      categoryId: 4,
-      categoryName: '디자인',
+      id: 101,
+      title: '삼성 리더십 과정',
+      description: '삼성의 리더십 원칙과 실무 적용 방법을 학습합니다.',
+      thumbnailUrl: 'https://picsum.photos/seed/leadership/400/300',
+      level: 'INTERMEDIATE',
+      type: 'BLENDED',
+      estimatedHours: 16,
+      categoryId: 5,
+      categoryName: '리더십',
     },
     instructors: [
       {
-        id: 6,
-        name: '정강사',
+        id: 22,
+        name: '윤강사',
         role: 'MAIN',
-        profileImageUrl: 'https://picsum.photos/seed/instructor6/100/100',
+        profileImageUrl: 'https://picsum.photos/seed/samsung1/100/100',
       },
     ],
   },
   {
-    id: 6,
-    title: '프로젝트 관리 실무 - 실시간 라이브',
+    id: 102,
+    tenantId: 2,
+    title: '디지털 트랜스포메이션 기초 - 상시',
     status: 'RECRUITING',
-    deliveryType: 'LIVE',
-    enrollmentMethod: 'APPROVAL',
-    isOnDemand: false,
-    enrollStartDate: '2024-04-15',
-    enrollEndDate: '2024-05-10',
-    classStartDate: '2024-05-15',
-    classEndDate: '2024-06-15',
-    capacity: 30,
-    currentEnrollment: 18,
-    availableSeats: 12,
-    price: '89000',
-    isFree: false,
+    deliveryType: 'ONLINE',
+    enrollmentMethod: 'FIRST_COME',
+    isOnDemand: true,
+    enrollStartDate: '2024-01-01',
+    enrollEndDate: '2024-12-31',
+    classStartDate: '2024-01-01',
+    classEndDate: '2024-12-31',
+    capacity: null,
+    currentEnrollment: 1890,
+    availableSeats: 999,
+    price: '0',
+    isFree: true,
     program: {
-      id: 6,
-      title: '프로젝트 관리 실무',
-      description: '효과적인 프로젝트 관리 방법론을 학습합니다.',
-      thumbnailUrl: 'https://picsum.photos/seed/pm/400/300',
-      level: 'INTERMEDIATE',
+      id: 102,
+      title: '디지털 트랜스포메이션 기초',
+      description: '디지털 전환의 핵심 개념과 전략을 학습합니다.',
+      thumbnailUrl: 'https://picsum.photos/seed/digital/400/300',
+      level: 'BEGINNER',
       type: 'ONLINE',
-      estimatedHours: 8,
-      categoryId: 5,
-      categoryName: '비즈니스',
+      estimatedHours: 12,
+      categoryId: 6,
+      categoryName: 'DX',
     },
     instructors: [
       {
-        id: 7,
-        name: '한강사',
+        id: 22,
+        name: '윤강사',
         role: 'MAIN',
-        profileImageUrl: 'https://picsum.photos/seed/instructor7/100/100',
+        profileImageUrl: 'https://picsum.photos/seed/samsung2/100/100',
+      },
+    ],
+  },
+  {
+    id: 103,
+    tenantId: 2,
+    title: '반도체 공정 이해 - 2024년 1기',
+    status: 'ONGOING',
+    deliveryType: 'OFFLINE',
+    enrollmentMethod: 'APPROVAL',
+    isOnDemand: false,
+    enrollStartDate: '2024-02-01',
+    enrollEndDate: '2024-02-28',
+    classStartDate: '2024-03-01',
+    classEndDate: '2024-05-31',
+    capacity: 30,
+    currentEnrollment: 30,
+    availableSeats: 0,
+    price: '0',
+    isFree: true,
+    program: {
+      id: 103,
+      title: '반도체 공정 이해',
+      description: '반도체 제조 공정의 전반적인 이해를 돕는 과정입니다.',
+      thumbnailUrl: 'https://picsum.photos/seed/semiconductor/400/300',
+      level: 'ADVANCED',
+      type: 'OFFLINE',
+      estimatedHours: 24,
+      categoryId: 7,
+      categoryName: '기술',
+    },
+    instructors: [
+      {
+        id: 22,
+        name: '윤강사',
+        role: 'MAIN',
+        profileImageUrl: 'https://picsum.photos/seed/samsung3/100/100',
+      },
+    ],
+  },
+  {
+    id: 104,
+    tenantId: 2,
+    title: '글로벌 비즈니스 커뮤니케이션 - Live',
+    status: 'RECRUITING',
+    deliveryType: 'LIVE',
+    enrollmentMethod: 'FIRST_COME',
+    isOnDemand: false,
+    enrollStartDate: '2024-04-01',
+    enrollEndDate: '2024-04-15',
+    classStartDate: '2024-05-01',
+    classEndDate: '2024-05-31',
+    capacity: 50,
+    currentEnrollment: 32,
+    availableSeats: 18,
+    price: '0',
+    isFree: true,
+    program: {
+      id: 104,
+      title: '글로벌 비즈니스 커뮤니케이션',
+      description: '글로벌 환경에서의 효과적인 비즈니스 커뮤니케이션을 학습합니다.',
+      thumbnailUrl: 'https://picsum.photos/seed/global/400/300',
+      level: 'INTERMEDIATE',
+      type: 'ONLINE',
+      estimatedHours: 10,
+      categoryId: 8,
+      categoryName: '커뮤니케이션',
+    },
+    instructors: [
+      {
+        id: 22,
+        name: '윤강사',
+        role: 'MAIN',
+        profileImageUrl: 'https://picsum.photos/seed/samsung4/100/100',
       },
     ],
   },
 ];
 
-export const mockCategories = [
-  { id: 1, name: '프로그래밍', courseCount: 45 },
-  { id: 2, name: '클라우드', courseCount: 23 },
-  { id: 3, name: '데이터 사이언스', courseCount: 18 },
-  { id: 4, name: '디자인', courseCount: 12 },
-  { id: 5, name: '비즈니스', courseCount: 15 },
-  { id: 6, name: '마케팅', courseCount: 8 },
+// 전체 차시 목록
+export const mockCourseTimes = [...mzcCourseTimes, ...samsungCourseTimes];
+
+// 테넌트별 차시 필터링 헬퍼
+export const getCourseTimesByTenant = (tenantId: number | null) => {
+  if (tenantId === null) {
+    return mockCourseTimes; // SA는 전체 조회
+  }
+  return mockCourseTimes.filter(time => time.tenantId === tenantId);
+};
+
+// ========== MZC 아카데미 카테고리 ==========
+const mzcCategories = [
+  { id: 1, tenantId: 1, name: '프로그래밍', courseCount: 45 },
+  { id: 2, tenantId: 1, name: '클라우드', courseCount: 23 },
+  { id: 3, tenantId: 1, name: '데이터 사이언스', courseCount: 18 },
+  { id: 4, tenantId: 1, name: '디자인', courseCount: 12 },
 ];
+
+// ========== 삼성 러닝센터 카테고리 ==========
+const samsungCategories = [
+  { id: 5, tenantId: 2, name: '리더십', courseCount: 34 },
+  { id: 6, tenantId: 2, name: 'DX', courseCount: 28 },
+  { id: 7, tenantId: 2, name: '기술', courseCount: 56 },
+  { id: 8, tenantId: 2, name: '커뮤니케이션', courseCount: 19 },
+];
+
+// 전체 카테고리
+export const mockCategories = [...mzcCategories, ...samsungCategories];
+
+// 테넌트별 카테고리 필터링 헬퍼
+export const getCategoriesByTenant = (tenantId: number | null) => {
+  if (tenantId === null) {
+    return mockCategories; // SA는 전체 조회
+  }
+  return mockCategories.filter(cat => cat.tenantId === tenantId);
+};
+
+// ========== 커뮤니티 게시판 (테넌트별) ==========
+export const mockCommunityPosts = [
+  // MZC 아카데미 게시글
+  {
+    id: 1,
+    tenantId: 1,
+    boardType: 'FREE',
+    title: 'React 학습 팁 공유합니다',
+    content: 'React를 처음 배우시는 분들께 도움이 될 만한 팁을 공유합니다...',
+    authorId: 14,
+    authorName: '정학습',
+    viewCount: 234,
+    likeCount: 45,
+    commentCount: 12,
+    isPinned: false,
+    createdAt: '2024-03-20T10:00:00',
+  },
+  {
+    id: 2,
+    tenantId: 1,
+    boardType: 'QNA',
+    title: 'TypeScript 제네릭 관련 질문입니다',
+    content: '제네릭을 사용할 때 타입 추론이 잘 안되는 경우가 있는데...',
+    authorId: 14,
+    authorName: '정학습',
+    viewCount: 156,
+    likeCount: 23,
+    commentCount: 8,
+    isPinned: false,
+    createdAt: '2024-03-19T14:30:00',
+  },
+  {
+    id: 3,
+    tenantId: 1,
+    boardType: 'STUDY',
+    title: 'AWS 스터디 그룹 모집합니다',
+    content: 'AWS 자격증 준비하실 분들 같이 스터디 하실래요?',
+    authorId: 14,
+    authorName: '정학습',
+    viewCount: 89,
+    likeCount: 15,
+    commentCount: 6,
+    isPinned: true,
+    createdAt: '2024-03-18T09:00:00',
+  },
+  // 삼성 러닝센터 게시글
+  {
+    id: 101,
+    tenantId: 2,
+    boardType: 'FREE',
+    title: '리더십 과정 후기입니다',
+    content: '이번 리더십 과정을 수료하고 느낀 점을 공유합니다...',
+    authorId: 24,
+    authorName: '한학습',
+    viewCount: 567,
+    likeCount: 89,
+    commentCount: 23,
+    isPinned: false,
+    createdAt: '2024-03-21T11:00:00',
+  },
+  {
+    id: 102,
+    tenantId: 2,
+    boardType: 'QNA',
+    title: 'DX 과정 관련 문의드립니다',
+    content: '디지털 트랜스포메이션 과정 수강 전 필요한 사전 지식이 있을까요?',
+    authorId: 24,
+    authorName: '한학습',
+    viewCount: 234,
+    likeCount: 12,
+    commentCount: 5,
+    isPinned: false,
+    createdAt: '2024-03-20T15:00:00',
+  },
+];
+
+// 테넌트별 커뮤니티 게시글 필터링 헬퍼
+export const getCommunityPostsByTenant = (tenantId: number | null) => {
+  if (tenantId === null) {
+    return mockCommunityPosts;
+  }
+  return mockCommunityPosts.filter(post => post.tenantId === tenantId);
+};
