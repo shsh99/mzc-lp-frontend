@@ -253,6 +253,37 @@ export const handlers = [
     return HttpResponse.json(apiResponse(mockTenantSettings.navigation));
   }),
 
+  // Tenant Settings - PUT (수정)
+  http.put('/api/tenant/settings/branding', async ({ request }) => {
+    await delay(50);
+    const body = await request.json();
+    return HttpResponse.json(apiResponse({ ...mockTenantSettings.branding, ...body }));
+  }),
+
+  http.put('/api/tenant/settings/design', async ({ request }) => {
+    await delay(50);
+    const body = await request.json();
+    return HttpResponse.json(apiResponse({ ...mockTenantSettings.branding, ...body }));
+  }),
+
+  http.put('/api/tenant/settings/features', async ({ request }) => {
+    await delay(50);
+    const body = await request.json();
+    return HttpResponse.json(apiResponse({ ...mockTenantSettings.features, ...body }));
+  }),
+
+  http.put('/api/tenant/settings/layout', async ({ request }) => {
+    await delay(50);
+    const body = await request.json();
+    return HttpResponse.json(apiResponse({ ...mockTenantSettings.layout, ...body }));
+  }),
+
+  http.put('/api/tenant/settings/navigation', async ({ request }) => {
+    await delay(50);
+    const body = await request.json();
+    return HttpResponse.json(apiResponse(body));
+  }),
+
   // ========== Banners ==========
   http.get('/api/banners', async () => {
     await delay(30);
