@@ -15,8 +15,10 @@ const queryClient = new QueryClient({
 
 async function enableMocking() {
   // Mock mode is enabled when VITE_MOCK_ENABLED is true or when API is not available
-  const isMockEnabled = import.meta.env.VITE_MOCK_ENABLED === 'true';
+  const mockEnvValue = import.meta.env.VITE_MOCK_ENABLED;
+  const isMockEnabled = mockEnvValue === 'true';
 
+  console.log('[App] VITE_MOCK_ENABLED raw value:', JSON.stringify(mockEnvValue), 'type:', typeof mockEnvValue);
   console.log('[App] Mock mode:', isMockEnabled, 'API Base URL:', import.meta.env.VITE_API_BASE_URL);
 
   if (!isMockEnabled) {
