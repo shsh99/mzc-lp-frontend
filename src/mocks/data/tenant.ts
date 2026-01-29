@@ -44,9 +44,7 @@ export const mockTenantSettings = {
   navigation: [
     { id: 1, label: '홈', path: '/tu/b2c', icon: 'Home', order: 1, isActive: true },
     { id: 2, label: '과정 탐색', path: '/tu/b2c/courses', icon: 'BookOpen', order: 2, isActive: true },
-    { id: 3, label: '내 학습', path: '/tu/b2c/mypage/learning', icon: 'GraduationCap', order: 3, isActive: true },
-    { id: 4, label: '커뮤니티', path: '/tu/b2c/community', icon: 'Users', order: 4, isActive: true },
-    { id: 5, label: '공지사항', path: '/tu/b2c/notifications', icon: 'Bell', order: 5, isActive: true },
+    { id: 3, label: '커뮤니티', path: '/tu/b2c/community', icon: 'Users', order: 3, isActive: true },
   ],
 };
 
