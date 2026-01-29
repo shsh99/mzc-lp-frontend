@@ -14,12 +14,14 @@ const queryClient = new QueryClient({
 });
 
 async function enableMocking() {
-  // Mock mode is enabled when VITE_MOCK_ENABLED is true or when API is not available
+  // Mock mode: enable when VITE_MOCK_ENABLED is 'true' OR when API URL is '/api' (frontend-only deployment)
   const mockEnvValue = import.meta.env.VITE_MOCK_ENABLED;
-  const isMockEnabled = mockEnvValue === 'true';
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
-  console.log('[App] VITE_MOCK_ENABLED raw value:', JSON.stringify(mockEnvValue), 'type:', typeof mockEnvValue);
-  console.log('[App] Mock mode:', isMockEnabled, 'API Base URL:', import.meta.env.VITE_API_BASE_URL);
+  // Enable mock when explicitly set OR when using relative /api path (no backend)
+  const isMockEnabled = mockEnvValue === 'true' || apiBaseUrl === '/api';
+
+  console.log('[App] Mock check:', { mockEnvValue, apiBaseUrl, isMockEnabled });
 
   if (!isMockEnabled) {
     console.log('[App] Mock mode disabled, skipping MSW initialization');
