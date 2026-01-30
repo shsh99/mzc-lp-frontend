@@ -4,6 +4,9 @@
 
 ---
 
+https://mzc-lp-frontend.vercel.app/tu/b2c
+
+
 ## 기술 스택
 
 | 구분 | 기술 | 버전 |
