@@ -849,23 +849,8 @@ export const handlers = [
         { status: 404 }
       );
     }
-    // 상세 정보 반환 (content 추가)
-    return HttpResponse.json(apiResponse({
-      ...notice,
-      content: `<h2>${notice.title}</h2>
-<p>안녕하세요, MZC Learn 관리팀입니다.</p>
-<p>본 공지사항은 중요한 내용을 담고 있으니 반드시 확인해 주시기 바랍니다.</p>
-<h3>주요 내용</h3>
-<ul>
-  <li>시스템 업데이트 및 새로운 기능 안내</li>
-  <li>이용 정책 변경사항</li>
-  <li>학습 관련 유용한 팁</li>
-</ul>
-<p>자세한 내용은 아래를 참고해 주세요.</p>
-<p>감사합니다.</p>`,
-      attachments: [],
-      viewCount: Math.floor(Math.random() * 500) + 50,
-    }));
+    // 상세 정보 반환 (mock 데이터에 content 포함되어 있음)
+    return HttpResponse.json(apiResponse(notice));
   }),
 
   // ========== Dashboard ==========
@@ -1137,8 +1122,118 @@ export const handlers = [
   }),
 
   // ========== Community (테넌트별) ==========
+  // 커뮤니티 카테고리 목록 (CommunityCategoryResponse 형식)
+  http.get('/api/community/categories', async () => {
+    await delay(20);
+    return HttpResponse.json(apiResponse({
+      categories: [
+        { id: 'free', name: '자유게시판', description: '자유롭게 이야기를 나눠보세요', count: 156, icon: 'MessageSquare' },
+        { id: 'qna', name: '질문과 답변', description: '학습 관련 질문을 올려주세요', count: 89, icon: 'HelpCircle' },
+        { id: 'study', name: '스터디 모집', description: '함께 공부할 스터디원을 모집합니다', count: 34, icon: 'Users' },
+        { id: 'career', name: '취업/이직', description: '취업 및 이직 관련 정보를 공유해요', count: 67, icon: 'Briefcase' },
+        { id: 'review', name: '후기 공유', description: '강의 및 학습 후기를 공유해주세요', count: 45, icon: 'Star' },
+      ],
+    }));
+  }),
+
+  // 내가 작성한 게시글 (정적 경로 - 동적 경로보다 먼저 정의)
+  http.get('/api/community/posts/my', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '20', 10);
+
+    // 현재 사용자가 작성한 게시글만 필터링 (mock에서는 authorId: 14 사용)
+    const myPosts = mockCommunityPosts.filter(p => p.authorId === 14);
+    const start = page * pageSize;
+    const end = start + pageSize;
+
+    return HttpResponse.json(apiResponse({
+      posts: myPosts.slice(start, end),
+      totalCount: myPosts.length,
+      page,
+      pageSize,
+      totalPages: Math.ceil(myPosts.length / pageSize),
+    }));
+  }),
+
+  // 내가 댓글 단 게시글 (정적 경로 - 동적 경로보다 먼저 정의)
+  http.get('/api/community/posts/commented', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '20', 10);
+
+    // mock 데이터: 다른 사람의 게시글 중 일부에 댓글을 단 것으로 처리 (본인 게시글 제외)
+    const otherPosts = mockCommunityPosts.filter(p => p.authorId !== 14);
+    const commentedPosts = otherPosts.slice(0, 4).map(post => ({
+      ...post,
+      myCommentCount: Math.floor(Math.random() * 3) + 1,
+      lastCommentedAt: '2026-01-28T14:30:00',
+    }));
+
+    const start = page * pageSize;
+    const end = start + pageSize;
+
+    return HttpResponse.json(apiResponse({
+      posts: commentedPosts.slice(start, end),
+      totalCount: commentedPosts.length,
+      page,
+      pageSize,
+      totalPages: Math.ceil(commentedPosts.length / pageSize),
+    }));
+  }),
+
+  // 인기 게시글 (정적 경로 - 동적 경로보다 먼저 정의)
+  // 원래 MOCK_POPULAR_POSTS 스타일의 인기글 데이터 반환
+  http.get('/api/community/posts/popular', async () => {
+    await delay(30);
+
+    // 프론트엔드 MOCK_POPULAR_POSTS와 유사한 형식의 인기글 데이터
+    // 날짜를 오늘로 설정하여 "오늘의 인기글" 필터에 걸리도록 함
+    const today = new Date().toISOString();
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
+    const popularPosts = [
+      // 오늘의 인기글 (왼쪽)
+      { id: 1001, type: 'discussion', title: '퇴사를 마음먹었습니다.', content: '5년차 개발자입니다...', excerpt: '5년차 개발자입니다...', author: { id: 101, name: '익명', avatar: null }, category: 'free', tags: ['퇴사', '고민'], viewCount: 1234, likeCount: 89, commentCount: 7, isLiked: false, isPinned: false, createdAt: today, updatedAt: today },
+      { id: 1002, type: 'discussion', title: '이직하고 싶은 물경력 개발자', content: '3년차인데 경력이 애매합니다...', excerpt: '3년차인데 경력이 애매합니다...', author: { id: 102, name: '고민개발자', avatar: null }, category: 'free', tags: ['이직', '커리어'], viewCount: 2341, likeCount: 156, commentCount: 15, isLiked: false, isPinned: false, createdAt: today, updatedAt: today },
+      { id: 1003, type: 'tip', title: '승진했습니다', content: '드디어 시니어로 승진했어요!', excerpt: '드디어 시니어로 승진했어요!', author: { id: 103, name: '행복한개발자', avatar: null }, category: 'free', tags: ['승진', '축하'], viewCount: 567, likeCount: 234, commentCount: 4, isLiked: false, isPinned: false, createdAt: today, updatedAt: today },
+      { id: 1004, type: 'discussion', title: '바이브 코딩의 도입의 문제점이 있는것 같아요', content: 'AI 코딩 도구를 사용하면서 느낀점...', excerpt: 'AI 코딩 도구를 사용하면서 느낀점...', author: { id: 104, name: 'AI회의론자', avatar: null }, category: 'qna', tags: ['AI', '코딩'], viewCount: 890, likeCount: 67, commentCount: 11, isLiked: false, isPinned: false, createdAt: today, updatedAt: today },
+      { id: 1005, type: 'question', title: '4년차의 개발 방향성과 이직 고려', content: '프론트엔드에서 풀스택으로 전환...', excerpt: '프론트엔드에서 풀스택으로 전환...', author: { id: 105, name: '방황중', avatar: null }, category: 'career', tags: ['커리어', '이직'], viewCount: 1567, likeCount: 123, commentCount: 11, isLiked: false, isPinned: false, createdAt: today, updatedAt: today },
+      // 오늘의 인기글 (오른쪽)
+      { id: 1006, type: 'tip', title: '조폭 말투로 AI 쓰면 빡쳐요', content: 'ChatGPT한테 반말하면 진짜...', excerpt: 'ChatGPT한테 반말하면 진짜...', author: { id: 106, name: 'AI사용자', avatar: null }, category: 'free', tags: ['AI', '유머'], viewCount: 345, likeCount: 45, commentCount: 2, isLiked: false, isPinned: false, createdAt: today, updatedAt: today },
+      { id: 1007, type: 'discussion', title: '커밋이력 없다고 일이 없냐 + 일 하기 싫고 추가 계약...', content: '프리랜서 생활의 현실...', excerpt: '프리랜서 생활의 현실...', author: { id: 107, name: '프리랜서A', avatar: null }, category: 'free', tags: ['프리랜서', '현실'], viewCount: 678, likeCount: 56, commentCount: 4, isLiked: false, isPinned: false, createdAt: today, updatedAt: today },
+      { id: 1008, type: 'question', title: '초보자 PM역할을 맡았습니다. ㅠㅠ 개발자님들 도와주...', content: '갑자기 PM을 맡게 되었는데...', excerpt: '갑자기 PM을 맡게 되었는데...', author: { id: 108, name: '신입PM', avatar: null }, category: 'qna', tags: ['PM', '도움요청'], viewCount: 456, likeCount: 34, commentCount: 4, isLiked: false, isPinned: false, createdAt: today, updatedAt: today },
+      { id: 1009, type: 'discussion', title: '동생의 처남 결혼식 참석하는게 맞을까요?', content: '경조사 범위가 너무 넓어지는것 같아서...', excerpt: '경조사 범위가 너무 넓어지는것 같아서...', author: { id: 109, name: '고민중', avatar: null }, category: 'free', tags: ['일상', '고민'], viewCount: 789, likeCount: 78, commentCount: 10, isLiked: false, isPinned: false, createdAt: today, updatedAt: today },
+      { id: 1010, type: 'discussion', title: '퀀트 개발해도 망할 것 같음..', content: '금융권 개발 현실...', excerpt: '금융권 개발 현실...', author: { id: 110, name: '퀀트개발자', avatar: null }, category: 'free', tags: ['퀀트', '금융'], viewCount: 234, likeCount: 23, commentCount: 2, isLiked: false, isPinned: false, createdAt: today, updatedAt: today },
+      // 이번주 인기글
+      { id: 1011, type: 'tip', title: '주니어 개발자가 알아야 할 것들 정리', content: '신입 개발자를 위한 가이드...', excerpt: '신입 개발자를 위한 가이드...', author: { id: 111, name: '시니어개발자', avatar: null }, category: 'free', tags: ['주니어', '팁'], viewCount: 5678, likeCount: 456, commentCount: 45, isLiked: false, isPinned: false, createdAt: yesterday, updatedAt: yesterday },
+      { id: 1012, type: 'discussion', title: 'React vs Vue 2024 비교', content: '프레임워크 선택 가이드...', excerpt: '프레임워크 선택 가이드...', author: { id: 112, name: '프론트전문가', avatar: null }, category: 'qna', tags: ['React', 'Vue'], viewCount: 3456, likeCount: 345, commentCount: 32, isLiked: false, isPinned: false, createdAt: yesterday, updatedAt: yesterday },
+      { id: 1013, type: 'review', title: '면접 후기 공유합니다', content: '대기업 면접 후기...', excerpt: '대기업 면접 후기...', author: { id: 113, name: '취준생', avatar: null }, category: 'career', tags: ['면접', '후기'], viewCount: 2345, likeCount: 234, commentCount: 28, isLiked: false, isPinned: false, createdAt: twoDaysAgo, updatedAt: twoDaysAgo },
+      { id: 1014, type: 'tip', title: '재택근무 꿀팁 모음', content: '집에서 생산성 높이는 방법...', excerpt: '집에서 생산성 높이는 방법...', author: { id: 114, name: '재택러', avatar: null }, category: 'free', tags: ['재택', '팁'], viewCount: 1890, likeCount: 189, commentCount: 24, isLiked: false, isPinned: false, createdAt: twoDaysAgo, updatedAt: twoDaysAgo },
+      { id: 1015, type: 'discussion', title: '연봉 협상 성공 후기', content: '연봉 협상 노하우 공유...', excerpt: '연봉 협상 노하우 공유...', author: { id: 115, name: '연봉협상가', avatar: null }, category: 'career', tags: ['연봉', '협상'], viewCount: 6789, likeCount: 678, commentCount: 67, isLiked: false, isPinned: false, createdAt: twoDaysAgo, updatedAt: twoDaysAgo },
+    ];
+
+    return HttpResponse.json(apiResponse({
+      posts: popularPosts,
+      totalCount: popularPosts.length,
+      page: 0,
+      pageSize: 15,
+      totalPages: 1,
+    }));
+  }),
+
+  // 게시글 목록 조회
   http.get('/api/community/posts', async ({ request }) => {
     await delay(30);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '10', 10);
+    const category = url.searchParams.get('category');
+    const search = url.searchParams.get('search');
+
     // 헤더에서 tenantId 추출 (실제로는 토큰에서 추출)
     const authHeader = request.headers.get('Authorization');
     const tokenMatch = authHeader?.match(/mock-access-token-(\d+)-/);
@@ -1148,10 +1243,37 @@ export const handlers = [
       const user = mockUserDetails[userId];
       tenantId = user?.tenantId ?? null;
     }
-    const posts = getCommunityPostsByTenant(tenantId);
-    return HttpResponse.json(apiResponse(paginatedResponse(posts)));
+    let posts = getCommunityPostsByTenant(tenantId);
+
+    // 카테고리 필터링
+    if (category && category !== 'all') {
+      posts = posts.filter(p => p.category === category);
+    }
+
+    // 검색어 필터링
+    if (search) {
+      const searchLower = search.toLowerCase();
+      posts = posts.filter(p =>
+        p.title.toLowerCase().includes(searchLower) ||
+        p.content.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // CommunityPostListResponse 형식으로 반환
+    const start = page * pageSize;
+    const end = start + pageSize;
+    const paginatedPosts = posts.slice(start, end);
+
+    return HttpResponse.json(apiResponse({
+      posts: paginatedPosts,
+      totalCount: posts.length,
+      page,
+      pageSize,
+      totalPages: Math.ceil(posts.length / pageSize),
+    }));
   }),
 
+  // 게시글 상세 조회 (동적 경로 - 정적 경로보다 나중에 정의)
   http.get('/api/community/posts/:id', async ({ params }) => {
     await delay(30);
     const post = mockCommunityPosts.find(p => p.id === Number(params.id));
@@ -1164,78 +1286,29 @@ export const handlers = [
     return HttpResponse.json(apiResponse(post));
   }),
 
+  // 게시글 작성
   http.post('/api/community/posts', async ({ request }) => {
     await delay(50);
-    const body = await request.json() as { title: string; content: string; boardType?: string };
+    const body = await request.json() as { title: string; content: string; type?: string; category?: string; tags?: string[] };
     const newPost = {
       id: mockCommunityPosts.length + 1,
       tenantId: 1,
-      boardType: body.boardType || 'FREE',
+      type: body.type || 'discussion',
       title: body.title,
       content: body.content,
-      authorId: 14,
-      authorName: '정학습',
+      excerpt: body.content.substring(0, 100),
+      author: { id: 14, name: '정학습', avatar: null },
+      category: body.category || 'free',
+      tags: body.tags || [],
       viewCount: 0,
       likeCount: 0,
       commentCount: 0,
+      isLiked: false,
       isPinned: false,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     return HttpResponse.json(apiResponse(newPost), { status: 201 });
-  }),
-
-  // 커뮤니티 카테고리 목록
-  http.get('/api/community/categories', async () => {
-    await delay(20);
-    return HttpResponse.json(apiResponse([
-      { id: 1, name: '자유게시판', code: 'FREE', description: '자유롭게 이야기를 나눠보세요', postCount: 156 },
-      { id: 2, name: '질문과 답변', code: 'QNA', description: '학습 관련 질문을 올려주세요', postCount: 89 },
-      { id: 3, name: '스터디 모집', code: 'STUDY', description: '함께 공부할 스터디원을 모집합니다', postCount: 34 },
-      { id: 4, name: '취업/이직', code: 'CAREER', description: '취업 및 이직 관련 정보를 공유해요', postCount: 67 },
-      { id: 5, name: '후기 공유', code: 'REVIEW', description: '강의 및 학습 후기를 공유해주세요', postCount: 45 },
-    ]));
-  }),
-
-  // 내가 작성한 게시글
-  http.get('/api/community/posts/me', async ({ request }) => {
-    await delay(30);
-    const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get('page') || '0', 10);
-    const size = parseInt(url.searchParams.get('size') || '10', 10);
-
-    // 현재 사용자가 작성한 게시글만 필터링 (mock에서는 authorId: 14 사용)
-    const myPosts = mockCommunityPosts.filter(p => p.authorId === 14);
-    return HttpResponse.json(apiResponse(paginatedResponse(myPosts, page, size)));
-  }),
-
-  // 내가 댓글 단 게시글
-  http.get('/api/community/posts/commented', async ({ request }) => {
-    await delay(30);
-    const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get('page') || '0', 10);
-    const size = parseInt(url.searchParams.get('size') || '10', 10);
-
-    // mock 데이터: 일부 게시글에 댓글을 단 것으로 처리
-    const commentedPosts = mockCommunityPosts.slice(0, 5).map(post => ({
-      ...post,
-      myCommentCount: Math.floor(Math.random() * 3) + 1,
-      lastCommentedAt: '2026-01-28T14:30:00',
-    }));
-    return HttpResponse.json(apiResponse(paginatedResponse(commentedPosts, page, size)));
-  }),
-
-  // 인기 게시글
-  http.get('/api/community/posts/popular', async ({ request }) => {
-    await delay(30);
-    const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get('page') || '0', 10);
-    const size = parseInt(url.searchParams.get('size') || '10', 10);
-
-    // 좋아요 순으로 정렬
-    const popularPosts = [...mockCommunityPosts]
-      .sort((a, b) => b.likeCount - a.likeCount)
-      .slice(0, 20);
-    return HttpResponse.json(apiResponse(paginatedResponse(popularPosts, page, size)));
   }),
 
   // 게시글 좋아요
@@ -1274,42 +1347,247 @@ export const handlers = [
     }));
   }),
 
-  // 게시글 댓글 목록
+  // 게시글 댓글 목록 (게시글별로 다른 댓글)
   http.get('/api/community/posts/:id/comments', async ({ params }) => {
     await delay(30);
     const postId = Number(params.id);
-    return HttpResponse.json(apiResponse([
+
+    // 게시글별 맞춤 댓글 데이터
+    const commentsByPost: Record<number, Array<{
+      id: number;
+      postId: number;
+      author: { id: number; name: string; avatar: string | null };
+      content: string;
+      likeCount: number;
+      createdAt: string;
+      isEdited: boolean;
+    }>> = {
+      // Post 1: React 학습 팁 공유합니다 (정학습 작성)
+      1: [
+        {
+          id: 1,
+          postId: 1,
+          author: { id: 15, name: '김개발', avatar: null },
+          content: '좋은 정보 감사합니다! React 처음 배우는데 정말 도움이 많이 됐어요.',
+          likeCount: 8,
+          createdAt: '2026-01-20T14:30:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 2,
+          postId: 1,
+          author: { id: 16, name: '이학습', avatar: null },
+          content: 'useEffect 의존성 배열 부분 정말 공감합니다. 저도 처음에 무한 루프 때문에 고생했어요.',
+          likeCount: 5,
+          createdAt: '2026-01-20T15:20:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 3,
+          postId: 1,
+          author: { id: 14, name: '정학습', avatar: null },
+          content: '댓글 감사합니다! 추가로 궁금한 점 있으시면 편하게 질문해주세요 :)',
+          likeCount: 3,
+          createdAt: '2026-01-20T16:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+      ],
+      // Post 2: TypeScript 제네릭 관련 질문입니다 (정학습 작성)
+      2: [
+        {
+          id: 4,
+          postId: 2,
+          author: { id: 16, name: '이학습', avatar: null },
+          content: 'extends 키워드를 사용해서 타입을 제한하시면 됩니다. 예를 들어 function example<T extends string | number>(arg: T) 이런 식으로요.',
+          likeCount: 12,
+          createdAt: '2026-01-19T15:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 5,
+          postId: 2,
+          author: { id: 15, name: '김개발', avatar: null },
+          content: '저도 비슷한 문제로 고민했었는데, 이학습님 답변이 도움이 되네요!',
+          likeCount: 3,
+          createdAt: '2026-01-19T16:30:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 6,
+          postId: 2,
+          author: { id: 14, name: '정학습', avatar: null },
+          content: '이학습님 답변 감사합니다! 덕분에 해결했습니다.',
+          likeCount: 2,
+          createdAt: '2026-01-19T17:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+      ],
+      // Post 3: AWS 스터디 그룹 모집합니다 (정학습 작성)
+      3: [
+        {
+          id: 7,
+          postId: 3,
+          author: { id: 17, name: '박코딩', avatar: null },
+          content: '저도 참여하고 싶습니다! AWS 자격증 준비 중인데 같이 공부하면 좋겠어요.',
+          likeCount: 4,
+          createdAt: '2026-01-18T10:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 8,
+          postId: 3,
+          author: { id: 15, name: '김개발', avatar: null },
+          content: '스터디 일정이 어떻게 되나요? 평일 저녁이면 참여 가능합니다.',
+          likeCount: 2,
+          createdAt: '2026-01-18T11:30:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 9,
+          postId: 3,
+          author: { id: 14, name: '정학습', avatar: null },
+          content: '신청 감사합니다! 평일 저녁 8시로 진행 예정이에요. 곧 오픈채팅방 링크 공유드릴게요.',
+          likeCount: 3,
+          createdAt: '2026-01-18T12:00:00',
+          updatedAt: '2026-01-28T12:00:00',
+        },
+      ],
+      // Post 4: React 기초 과정 수강 후기 (정학습 작성)
+      4: [
+        {
+          id: 10,
+          postId: 4,
+          author: { id: 15, name: '김개발', avatar: null },
+          content: '저도 이 과정 듣고 있는데 정말 좋아요! 후기 공감합니다.',
+          likeCount: 6,
+          createdAt: '2026-01-15T17:30:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 11,
+          postId: 4,
+          author: { id: 16, name: '이학습', avatar: null },
+          content: '심화 내용은 React 고급 과정에서 다룬다고 하더라고요. 추천드려요!',
+          likeCount: 4,
+          createdAt: '2026-01-15T18:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+      ],
+      // Post 5: 프론트엔드 개발자 면접 준비 팁 (정학습 작성)
+      5: [
+        {
+          id: 12,
+          postId: 5,
+          author: { id: 16, name: '이학습', avatar: null },
+          content: '면접 준비에 큰 도움이 되었습니다! 특히 기술 면접 부분 정리가 좋네요.',
+          likeCount: 15,
+          createdAt: '2026-01-10T14:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 13,
+          postId: 5,
+          author: { id: 17, name: '박코딩', avatar: null },
+          content: '과제 전형 팁도 공유해주실 수 있나요?',
+          likeCount: 7,
+          createdAt: '2026-01-10T15:30:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 14,
+          postId: 5,
+          author: { id: 14, name: '정학습', avatar: null },
+          content: '과제 전형 팁은 따로 글 작성해볼게요! 관심 가져주셔서 감사합니다.',
+          likeCount: 5,
+          createdAt: '2026-01-10T16:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+      ],
+      // Post 6: Next.js 13 App Router 사용 후기 (김개발 작성)
+      6: [
+        {
+          id: 15,
+          postId: 6,
+          author: { id: 14, name: '정학습', avatar: null },
+          content: '저도 App Router 사용 중인데, 서버 컴포넌트 개념이 처음엔 어렵더라고요.',
+          likeCount: 4,
+          createdAt: '2026-01-25T10:30:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 16,
+          postId: 6,
+          author: { id: 16, name: '이학습', avatar: null },
+          content: 'use client 지시어 사용할 때 팁이 있을까요?',
+          likeCount: 2,
+          createdAt: '2026-01-25T11:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+      ],
+      // Post 7: Zustand vs Redux 질문 (이학습 작성)
+      7: [
+        {
+          id: 17,
+          postId: 7,
+          author: { id: 14, name: '정학습', avatar: null },
+          content: '프로젝트 규모가 작으면 Zustand, 크고 복잡하면 Redux Toolkit 추천드려요!',
+          likeCount: 18,
+          createdAt: '2026-01-24T15:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 18,
+          postId: 7,
+          author: { id: 15, name: '김개발', avatar: null },
+          content: '저희 팀은 Zustand로 마이그레이션했는데 코드량이 확 줄었어요.',
+          likeCount: 10,
+          createdAt: '2026-01-24T16:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+      ],
+      // Post 8: TypeScript 스터디 모집 (박코딩 작성)
+      8: [
+        {
+          id: 19,
+          postId: 8,
+          author: { id: 14, name: '정학습', avatar: null },
+          content: '참여 희망합니다! TypeScript 고급 패턴 같이 공부하고 싶어요.',
+          likeCount: 3,
+          createdAt: '2026-01-23T11:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+        {
+          id: 20,
+          postId: 8,
+          author: { id: 16, name: '이학습', avatar: null },
+          content: '아직 자리 있나요? 저도 신청하고 싶습니다.',
+          likeCount: 2,
+          createdAt: '2026-01-23T13:00:00',
+          updatedAt: '2026-01-28T10:00:00',
+        },
+      ],
+    };
+
+    const comments = commentsByPost[postId] || [
       {
-        id: 1,
+        id: 100,
         postId,
-        authorId: 15,
-        authorName: '김개발',
-        content: '좋은 정보 감사합니다! 많은 도움이 되었어요.',
-        likeCount: 5,
-        createdAt: '2026-01-28T10:30:00',
-        isEdited: false,
-      },
-      {
-        id: 2,
-        postId,
-        authorId: 16,
-        authorName: '이학습',
-        content: '저도 같은 고민이 있었는데, 이 글 보고 해결했습니다.',
-        likeCount: 3,
-        createdAt: '2026-01-28T11:15:00',
-        isEdited: false,
-      },
-      {
-        id: 3,
-        postId,
-        authorId: 14,
-        authorName: '정학습',
-        content: '댓글 감사합니다! 추가 질문 있으시면 편하게 남겨주세요.',
+        author: { id: 15, name: '김개발', avatar: null },
+        content: '좋은 글 감사합니다!',
         likeCount: 2,
-        createdAt: '2026-01-28T12:00:00',
-        isEdited: true,
+        createdAt: '2026-01-28T10:00:00',
+        updatedAt: '2026-01-28T10:00:00',
       },
-    ]));
+    ];
+
+    // CommentListResponse 형식으로 반환
+    return HttpResponse.json(apiResponse({
+      comments,
+      totalCount: comments.length,
+      page: 0,
+      pageSize: 20,
+      totalPages: 1,
+    }));
   }),
 
   // 댓글 작성
@@ -1325,7 +1603,7 @@ export const handlers = [
       content: body.content,
       likeCount: 0,
       createdAt: new Date().toISOString(),
-      isEdited: false,
+      updatedAt: '2026-01-28T10:00:00',
     }), { status: 201 });
   }),
 

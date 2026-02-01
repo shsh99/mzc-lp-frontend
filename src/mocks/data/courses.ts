@@ -522,78 +522,259 @@ export const getCategoriesByTenant = (tenantId: number | null) => {
 };
 
 // ========== 커뮤니티 게시판 (테넌트별) ==========
+// CommunityPost 타입에 맞게 구성
 export const mockCommunityPosts = [
-  // MZC 아카데미 게시글
+  // MZC 아카데미 게시글 - 정학습(authorId: 14) 작성
   {
     id: 1,
     tenantId: 1,
-    boardType: 'FREE',
+    type: 'tip' as const,
     title: 'React 학습 팁 공유합니다',
-    content: 'React를 처음 배우시는 분들께 도움이 될 만한 팁을 공유합니다...',
-    authorId: 14,
-    authorName: '정학습',
+    content: `React를 처음 배우시는 분들께 도움이 될 만한 팁을 공유합니다.
+
+1. useState vs useReducer
+간단한 상태는 useState, 복잡한 상태 로직은 useReducer를 사용하세요.
+
+2. useEffect 의존성 배열
+의존성 배열을 잘 관리해야 무한 루프를 방지할 수 있습니다.
+
+3. 컴포넌트 분리
+하나의 컴포넌트는 하나의 역할만 담당하도록 분리하세요.`,
+    excerpt: 'React를 처음 배우시는 분들께 도움이 될 만한 팁을 공유합니다.',
+    author: { id: 14, name: '정학습', avatar: null },
+    category: 'free',
+    tags: ['React', '프론트엔드', '학습팁'],
     viewCount: 234,
     likeCount: 45,
     commentCount: 12,
+    isLiked: false,
     isPinned: false,
-    createdAt: '2026-01-20T10:00:00',
+    createdAt: '2026-02-01T10:00:00',
+    updatedAt: '2026-02-01T10:00:00',
+    authorId: 14,
+    boardType: 'FREE',
   },
   {
     id: 2,
     tenantId: 1,
-    boardType: 'QNA',
+    type: 'question' as const,
     title: 'TypeScript 제네릭 관련 질문입니다',
-    content: '제네릭을 사용할 때 타입 추론이 잘 안되는 경우가 있는데...',
-    authorId: 14,
-    authorName: '정학습',
+    content: `제네릭을 사용할 때 타입 추론이 잘 안되는 경우가 있는데요.
+
+function example<T>(arg: T): T {
+  return arg;
+}
+
+위 코드에서 T가 특정 타입으로 제한되지 않을 때 어떻게 처리하면 좋을까요?`,
+    excerpt: '제네릭을 사용할 때 타입 추론이 잘 안되는 경우가 있는데요.',
+    author: { id: 14, name: '정학습', avatar: null },
+    category: 'qna',
+    tags: ['TypeScript', '제네릭'],
     viewCount: 156,
     likeCount: 23,
     commentCount: 8,
+    isLiked: true,
     isPinned: false,
-    createdAt: '2026-01-19T14:30:00',
+    isSolved: false,
+    createdAt: '2026-01-31T14:30:00',
+    updatedAt: '2026-01-31T14:30:00',
+    authorId: 14,
+    boardType: 'QNA',
   },
   {
     id: 3,
     tenantId: 1,
-    boardType: 'STUDY',
+    type: 'discussion' as const,
     title: 'AWS 스터디 그룹 모집합니다',
-    content: 'AWS 자격증 준비하실 분들 같이 스터디 하실래요?',
-    authorId: 14,
-    authorName: '정학습',
+    content: `AWS 자격증 준비하실 분들 같이 스터디 하실래요?
+
+[스터디 정보]
+- 대상: AWS Solutions Architect Associate
+- 기간: 4주
+- 방식: 온라인 (주 2회)
+- 인원: 5명
+
+댓글로 신청해주세요!`,
+    excerpt: 'AWS 자격증 준비하실 분들 같이 스터디 하실래요?',
+    author: { id: 14, name: '정학습', avatar: null },
+    category: 'study',
+    tags: ['AWS', '스터디', '자격증'],
     viewCount: 89,
     likeCount: 15,
     commentCount: 6,
+    isLiked: false,
     isPinned: true,
-    createdAt: '2026-01-18T09:00:00',
+    createdAt: '2026-01-30T09:00:00',
+    updatedAt: '2026-01-30T09:00:00',
+    authorId: 14,
+    boardType: 'STUDY',
+  },
+  {
+    id: 4,
+    tenantId: 1,
+    type: 'review' as const,
+    title: 'React 기초 과정 수강 후기',
+    content: `React 기초부터 실전까지 과정을 완강했습니다!
+
+[좋았던 점]
+- 체계적인 커리큘럼
+- 실무 예제 중심 학습
+- 친절한 강사님 설명
+
+[아쉬운 점]
+조금 더 심화 내용이 있으면 좋겠습니다.
+
+전체적으로 만족스러운 과정이었습니다.`,
+    excerpt: 'React 기초부터 실전까지 과정을 완강했습니다!',
+    author: { id: 14, name: '정학습', avatar: null },
+    category: 'review',
+    tags: ['React', '수강후기'],
+    viewCount: 312,
+    likeCount: 67,
+    commentCount: 15,
+    isLiked: true,
+    isPinned: false,
+    createdAt: '2026-01-29T16:00:00',
+    updatedAt: '2026-01-29T16:00:00',
+    authorId: 14,
+    boardType: 'REVIEW',
+  },
+  {
+    id: 5,
+    tenantId: 1,
+    type: 'tip' as const,
+    title: '프론트엔드 개발자 면접 준비 팁',
+    content: `최근 프론트엔드 개발자로 이직을 준비하면서 정리한 면접 팁입니다.
+
+[기술 면접]
+- JavaScript 핵심 개념 (클로저, 프로토타입, 이벤트 루프)
+- React 동작 원리 (Virtual DOM, Reconciliation)
+- 상태 관리 패턴
+
+[과제 전형]
+클린 코드, 컴포넌트 설계, 테스트 코드 작성이 중요합니다.`,
+    excerpt: '최근 프론트엔드 개발자로 이직을 준비하면서 정리한 면접 팁입니다.',
+    author: { id: 14, name: '정학습', avatar: null },
+    category: 'career',
+    tags: ['면접', '이직', '프론트엔드'],
+    viewCount: 445,
+    likeCount: 89,
+    commentCount: 23,
+    isLiked: false,
+    isPinned: false,
+    createdAt: '2026-01-28T11:00:00',
+    updatedAt: '2026-01-28T11:00:00',
+    authorId: 14,
+    boardType: 'CAREER',
+  },
+  // 다른 사용자 게시글
+  {
+    id: 6,
+    tenantId: 1,
+    type: 'discussion' as const,
+    title: 'Next.js 13 App Router 사용 후기',
+    content: `Next.js 13의 App Router를 프로젝트에 적용해봤습니다.
+서버 컴포넌트와 클라이언트 컴포넌트의 구분이 중요하더라고요.`,
+    excerpt: 'Next.js 13의 App Router를 프로젝트에 적용해봤습니다.',
+    author: { id: 15, name: '김개발', avatar: null },
+    category: 'free',
+    tags: ['Next.js', 'React'],
+    viewCount: 178,
+    likeCount: 34,
+    commentCount: 7,
+    isLiked: false,
+    isPinned: false,
+    createdAt: '2026-01-27T09:00:00',
+    updatedAt: '2026-01-27T09:00:00',
+    authorId: 15,
+    boardType: 'FREE',
+  },
+  {
+    id: 7,
+    tenantId: 1,
+    type: 'question' as const,
+    title: 'Zustand vs Redux 어떤 걸 선택해야 할까요?',
+    content: `새 프로젝트를 시작하는데 상태 관리 라이브러리 선택에서 고민 중입니다.
+Zustand와 Redux 중 어떤 것을 추천하시나요?`,
+    excerpt: '새 프로젝트를 시작하는데 상태 관리 라이브러리 선택에서 고민 중입니다.',
+    author: { id: 16, name: '이학습', avatar: null },
+    category: 'qna',
+    tags: ['Zustand', 'Redux', '상태관리'],
+    viewCount: 223,
+    likeCount: 28,
+    commentCount: 19,
+    isLiked: true,
+    isPinned: false,
+    isSolved: true,
+    createdAt: '2026-01-26T14:00:00',
+    updatedAt: '2026-01-26T14:00:00',
+    authorId: 16,
+    boardType: 'QNA',
+  },
+  {
+    id: 8,
+    tenantId: 1,
+    type: 'discussion' as const,
+    title: 'TypeScript 스터디 멤버 모집 (마감임박)',
+    content: `TypeScript 기초부터 고급까지 함께 공부하실 분을 모집합니다.
+현재 3/5명 모집완료!`,
+    excerpt: 'TypeScript 기초부터 고급까지 함께 공부하실 분을 모집합니다.',
+    author: { id: 17, name: '박코딩', avatar: null },
+    category: 'study',
+    tags: ['TypeScript', '스터디'],
+    viewCount: 156,
+    likeCount: 22,
+    commentCount: 11,
+    isLiked: false,
+    isPinned: false,
+    createdAt: '2026-01-25T10:00:00',
+    updatedAt: '2026-01-25T10:00:00',
+    authorId: 17,
+    boardType: 'STUDY',
   },
   // 삼성 러닝센터 게시글
   {
     id: 101,
     tenantId: 2,
-    boardType: 'FREE',
+    type: 'review' as const,
     title: '리더십 과정 후기입니다',
-    content: '이번 리더십 과정을 수료하고 느낀 점을 공유합니다...',
-    authorId: 24,
-    authorName: '한학습',
+    content: `이번 리더십 과정을 수료하고 느낀 점을 공유합니다.
+팀을 이끄는 방법에 대해 많이 배웠습니다.`,
+    excerpt: '이번 리더십 과정을 수료하고 느낀 점을 공유합니다.',
+    author: { id: 24, name: '한학습', avatar: null },
+    category: 'free',
+    tags: ['리더십', '수강후기'],
     viewCount: 567,
     likeCount: 89,
     commentCount: 23,
+    isLiked: false,
     isPinned: false,
-    createdAt: '2026-01-21T11:00:00',
+    createdAt: '2026-01-31T11:00:00',
+    updatedAt: '2026-01-31T11:00:00',
+    authorId: 24,
+    boardType: 'FREE',
   },
   {
     id: 102,
     tenantId: 2,
-    boardType: 'QNA',
+    type: 'question' as const,
     title: 'DX 과정 관련 문의드립니다',
-    content: '디지털 트랜스포메이션 과정 수강 전 필요한 사전 지식이 있을까요?',
-    authorId: 24,
-    authorName: '한학습',
+    content: `디지털 트랜스포메이션 과정 수강 전 필요한 사전 지식이 있을까요?
+IT 비전공자도 수강 가능한지 궁금합니다.`,
+    excerpt: '디지털 트랜스포메이션 과정 수강 전 필요한 사전 지식이 있을까요?',
+    author: { id: 24, name: '한학습', avatar: null },
+    category: 'qna',
+    tags: ['DX', '디지털전환'],
     viewCount: 234,
     likeCount: 12,
     commentCount: 5,
+    isLiked: false,
     isPinned: false,
-    createdAt: '2026-01-20T15:00:00',
+    isSolved: false,
+    createdAt: '2026-01-30T15:00:00',
+    updatedAt: '2026-01-30T15:00:00',
+    authorId: 24,
+    boardType: 'QNA',
   },
 ];
 
