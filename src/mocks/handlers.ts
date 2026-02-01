@@ -19,6 +19,7 @@ import {
   mockCurriculum,
   mockWishlist,
   mockCart,
+  mockNotifications,
   mockTADashboard,
   mockSADashboard,
   mockTUDashboard,
@@ -743,6 +744,106 @@ export const handlers = [
     const courseTimeId = Number(params.courseTimeId);
     const isInCart = mockCart.some(c => c.courseTimeId === courseTimeId);
     return HttpResponse.json(apiResponse(isInCart));
+  }),
+
+  // ========== Notifications (알림) ==========
+  // 알림 목록 조회
+  http.get('/api/tu/notifications', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '10', 10);
+    const type = url.searchParams.get('type');
+    const isReadParam = url.searchParams.get('isRead');
+
+    let filteredNotifications = [...mockNotifications];
+
+    // 타입 필터링
+    if (type && type !== 'all') {
+      filteredNotifications = filteredNotifications.filter(n => n.type === type);
+    }
+
+    // 읽음 상태 필터링
+    if (isReadParam !== null) {
+      const isRead = isReadParam === 'true';
+      filteredNotifications = filteredNotifications.filter(n => n.isRead === isRead);
+    }
+
+    // 페이지네이션
+    const start = page * pageSize;
+    const end = start + pageSize;
+    const paginatedNotifications = filteredNotifications.slice(start, end);
+    const unreadCount = mockNotifications.filter(n => !n.isRead).length;
+
+    return HttpResponse.json(apiResponse({
+      notifications: paginatedNotifications,
+      totalCount: filteredNotifications.length,
+      page,
+      pageSize,
+      totalPages: Math.ceil(filteredNotifications.length / pageSize),
+      unreadCount,
+    }));
+  }),
+
+  // 알림 상세 조회
+  http.get('/api/tu/notifications/:id', async ({ params }) => {
+    await delay(20);
+    const notificationId = Number(params.id);
+    const notification = mockNotifications.find(n => n.id === notificationId);
+    if (!notification) {
+      return HttpResponse.json(
+        errorResponse('알림을 찾을 수 없습니다.', 'NOTIFICATION_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse(notification));
+  }),
+
+  // 읽지 않은 알림 개수 조회
+  http.get('/api/tu/notifications/unread-count', async () => {
+    await delay(10);
+    const unreadCount = mockNotifications.filter(n => !n.isRead).length;
+    return HttpResponse.json(apiResponse({ count: unreadCount }));
+  }),
+
+  // 알림 읽음 처리
+  http.patch('/api/tu/notifications/:id/read', async ({ params }) => {
+    await delay(20);
+    const notificationId = Number(params.id);
+    const notification = mockNotifications.find(n => n.id === notificationId);
+    if (!notification) {
+      return HttpResponse.json(
+        errorResponse('알림을 찾을 수 없습니다.', 'NOTIFICATION_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({ message: '알림을 읽음 처리했습니다.' }));
+  }),
+
+  // 모든 알림 읽음 처리
+  http.patch('/api/tu/notifications/read-all', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ message: '모든 알림을 읽음 처리했습니다.' }));
+  }),
+
+  // 알림 삭제
+  http.delete('/api/tu/notifications/:id', async ({ params }) => {
+    await delay(20);
+    const notificationId = Number(params.id);
+    const notification = mockNotifications.find(n => n.id === notificationId);
+    if (!notification) {
+      return HttpResponse.json(
+        errorResponse('알림을 찾을 수 없습니다.', 'NOTIFICATION_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({ message: '알림이 삭제되었습니다.' }));
+  }),
+
+  // 읽은 알림 전체 삭제
+  http.delete('/api/tu/notifications/read', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ message: '읽은 알림이 모두 삭제되었습니다.' }));
   }),
 
   // ========== Community (테넌트별) ==========
