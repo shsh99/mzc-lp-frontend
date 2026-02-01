@@ -30,12 +30,13 @@ interface CategoryOption {
 const CATEGORY_OPTIONS: CategoryOption[] = [
   { id: null, name: '전체', code: 'all' },
   { id: 1, name: '개발', code: 'dev' },
-  { id: 2, name: 'AI', code: 'ai' },
+  { id: 2, name: '클라우드', code: 'cloud' },
   { id: 3, name: '데이터', code: 'data' },
   { id: 4, name: '디자인', code: 'design' },
   { id: 5, name: '비즈니스', code: 'business' },
-  { id: 6, name: '마케팅', code: 'marketing' },
-  { id: 7, name: '외국어', code: 'language' },
+  { id: 6, name: 'DX', code: 'dx' },
+  { id: 7, name: '기술', code: 'tech' },
+  { id: 8, name: '커뮤니케이션', code: 'communication' },
 ];
 
 // 운영 방식 필터 옵션

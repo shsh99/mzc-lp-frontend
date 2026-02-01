@@ -10,7 +10,7 @@ const mzcCourses = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=300&fit=crop',
     status: 'PUBLISHED',
     categoryId: 1,
-    categoryName: '프로그래밍',
+    categoryName: '개발',
     instructorId: 12,
     instructorName: '박강사',
     duration: 1200,
@@ -30,7 +30,7 @@ const mzcCourses = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=400&h=300&fit=crop',
     status: 'PUBLISHED',
     categoryId: 1,
-    categoryName: '프로그래밍',
+    categoryName: '개발',
     instructorId: 12,
     instructorName: '박강사',
     duration: 900,
@@ -70,7 +70,7 @@ const mzcCourses = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=400&h=300&fit=crop',
     status: 'PUBLISHED',
     categoryId: 3,
-    categoryName: '데이터 사이언스',
+    categoryName: '데이터',
     instructorId: 12,
     instructorName: '박강사',
     duration: 1800,
@@ -94,7 +94,7 @@ const samsungCourses = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop',
     status: 'PUBLISHED',
     categoryId: 5,
-    categoryName: '리더십',
+    categoryName: '비즈니스',
     instructorId: 22,
     instructorName: '윤강사',
     duration: 960,
@@ -207,7 +207,7 @@ const mzcCourseTimes = [
       type: 'ONLINE',
       estimatedHours: 20,
       categoryId: 1,
-      categoryName: '프로그래밍',
+      categoryName: '개발',
     },
     instructors: [
       {
@@ -244,7 +244,7 @@ const mzcCourseTimes = [
       type: 'ONLINE',
       estimatedHours: 15,
       categoryId: 1,
-      categoryName: '프로그래밍',
+      categoryName: '개발',
     },
     instructors: [
       {
@@ -318,7 +318,7 @@ const mzcCourseTimes = [
       type: 'ONLINE',
       estimatedHours: 30,
       categoryId: 3,
-      categoryName: '데이터 사이언스',
+      categoryName: '데이터',
     },
     instructors: [
       {
@@ -359,7 +359,7 @@ const samsungCourseTimes = [
       type: 'BLENDED',
       estimatedHours: 16,
       categoryId: 5,
-      categoryName: '리더십',
+      categoryName: '비즈니스',
     },
     instructors: [
       {
@@ -494,17 +494,17 @@ export const getCourseTimesByTenant = (tenantId: number | null) => {
   return mockCourseTimes.filter(time => time.tenantId === tenantId);
 };
 
-// ========== MZC 아카데미 카테고리 ==========
+// ========== MZC 아카데미 카테고리 (프론트엔드와 일치) ==========
 const mzcCategories = [
-  { id: 1, tenantId: 1, name: '프로그래밍', courseCount: 45 },
+  { id: 1, tenantId: 1, name: '개발', courseCount: 45 },
   { id: 2, tenantId: 1, name: '클라우드', courseCount: 23 },
-  { id: 3, tenantId: 1, name: '데이터 사이언스', courseCount: 18 },
+  { id: 3, tenantId: 1, name: '데이터', courseCount: 18 },
   { id: 4, tenantId: 1, name: '디자인', courseCount: 12 },
 ];
 
-// ========== 삼성 러닝센터 카테고리 ==========
+// ========== 삼성 러닝센터 카테고리 (프론트엔드와 일치) ==========
 const samsungCategories = [
-  { id: 5, tenantId: 2, name: '리더십', courseCount: 34 },
+  { id: 5, tenantId: 2, name: '비즈니스', courseCount: 34 },
   { id: 6, tenantId: 2, name: 'DX', courseCount: 28 },
   { id: 7, tenantId: 2, name: '기술', courseCount: 56 },
   { id: 8, tenantId: 2, name: '커뮤니케이션', courseCount: 19 },

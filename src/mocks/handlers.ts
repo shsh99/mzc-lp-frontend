@@ -295,9 +295,61 @@ export const handlers = [
     return HttpResponse.json(apiResponse(mockTenantSettings.branding));
   }),
 
-  http.get('/api/public/course-times', async () => {
+  http.get('/api/public/course-times', async ({ request }) => {
     await delay(50);
-    return HttpResponse.json(apiResponse(paginatedResponse(mockCourseTimes)));
+    const url = new URL(request.url);
+
+    // 필터 파라미터 파싱
+    const categoryId = url.searchParams.get('categoryId');
+    const statusParams = url.searchParams.getAll('status');
+    const deliveryType = url.searchParams.get('deliveryType');
+    const isFree = url.searchParams.get('isFree');
+    const keyword = url.searchParams.get('keyword');
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '10', 10);
+
+    let filteredCourseTimes = [...mockCourseTimes];
+
+    // 카테고리 필터링
+    if (categoryId) {
+      const catId = parseInt(categoryId, 10);
+      filteredCourseTimes = filteredCourseTimes.filter(
+        ct => ct.program?.categoryId === catId
+      );
+    }
+
+    // 상태 필터링
+    if (statusParams.length > 0) {
+      filteredCourseTimes = filteredCourseTimes.filter(
+        ct => statusParams.includes(ct.status)
+      );
+    }
+
+    // 운영 방식 필터링
+    if (deliveryType) {
+      filteredCourseTimes = filteredCourseTimes.filter(
+        ct => ct.deliveryType === deliveryType
+      );
+    }
+
+    // 무료/유료 필터링
+    if (isFree !== null && isFree !== undefined) {
+      const isFreeValue = isFree === 'true';
+      filteredCourseTimes = filteredCourseTimes.filter(
+        ct => ct.isFree === isFreeValue
+      );
+    }
+
+    // 키워드 검색
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      filteredCourseTimes = filteredCourseTimes.filter(
+        ct => ct.title.toLowerCase().includes(lowerKeyword) ||
+              ct.program?.title?.toLowerCase().includes(lowerKeyword)
+      );
+    }
+
+    return HttpResponse.json(apiResponse(paginatedResponse(filteredCourseTimes, page, size)));
   }),
 
   // ========== Tenant Settings ==========
