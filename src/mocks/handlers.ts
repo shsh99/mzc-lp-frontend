@@ -60,6 +60,27 @@ const errorResponse = (message: string, code: string = 'ERROR') => ({
   error: { code, message },
 });
 
+// Course 백엔드 응답 형식으로 변환하는 헬퍼
+const transformCourseToBackend = (course: (typeof mockCourses)[0]) => ({
+  courseId: course.id,
+  title: course.title,
+  description: course.description,
+  thumbnailUrl: course.thumbnailUrl,
+  level: course.level,
+  type: 'ONLINE',
+  estimatedHours: Math.floor(course.duration / 60),
+  categoryId: course.categoryId,
+  tags: [],
+  createdAt: course.createdAt,
+  updatedAt: course.createdAt,
+  // Mock 추가 필드 (프론트엔드에서 활용)
+  rating: course.rating,
+  reviewCount: course.reviewCount,
+  enrollmentCount: course.enrollmentCount,
+  instructorId: course.instructorId,
+  instructorName: course.instructorName,
+});
+
 export const handlers = [
   // ========== Auth ==========
   http.post('/api/auth/login', async ({ request }) => {
@@ -589,18 +610,27 @@ export const handlers = [
   // ========== Courses ==========
   http.get('/api/courses', async () => {
     await delay(50);
-    return HttpResponse.json(apiResponse(paginatedResponse(mockCourses)));
+    const transformedCourses = mockCourses.map(transformCourseToBackend);
+    return HttpResponse.json(apiResponse(paginatedResponse(transformedCourses)));
   }),
 
   http.get('/api/courses/my', async () => {
     await delay(30);
-    return HttpResponse.json(apiResponse(paginatedResponse(mockCourses.slice(0, 3))));
+    const transformedCourses = mockCourses.slice(0, 3).map(transformCourseToBackend);
+    return HttpResponse.json(apiResponse(paginatedResponse(transformedCourses)));
   }),
 
   http.get('/api/courses/:id', async ({ params }) => {
     await delay(30);
     const course = mockCourses.find(c => c.id === Number(params.id));
-    return HttpResponse.json(apiResponse(course || mockCourses[0]));
+    const baseCourse = course || mockCourses[0];
+    return HttpResponse.json(apiResponse({
+      ...transformCourseToBackend(baseCourse),
+      items: [],
+      itemCount: baseCourse.totalItems || 0,
+      startDate: null,
+      endDate: null,
+    }));
   }),
 
   // ========== Course Times ==========
@@ -846,6 +876,664 @@ export const handlers = [
   http.delete('/api/times/:timeId/reviews/:reviewId', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse({ success: true }));
+  }),
+
+  // ========== Course Community (강의별 커뮤니티) ==========
+  // 강의별 커뮤니티 게시글 목록
+  http.get('/api/times/:timeId/community/posts', async ({ params, request }) => {
+    await delay(50);
+    const timeId = Number(params.timeId);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const pageSize = Number(url.searchParams.get('pageSize')) || 10;
+
+    // 강의별 커뮤니티 게시글 데이터
+    const communityPostsMap: Record<number, Array<{
+      id: number;
+      courseTimeId: number;
+      type: 'question' | 'discussion' | 'tip' | 'review' | 'announcement';
+      title: string;
+      content: string;
+      excerpt: string;
+      author: { id: number; name: string; avatar: string | null };
+      category: string;
+      tags: string[];
+      viewCount: number;
+      likeCount: number;
+      commentCount: number;
+      isLiked: boolean;
+      isPinned: boolean;
+      isSolved?: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }>> = {
+      // React 기초부터 실전까지 - 2024년 1기
+      1: [
+        { id: 1001, courseTimeId: 1, type: 'question', title: 'useEffect 무한 루프 해결 방법', content: 'useEffect 안에서 state를 업데이트하면 무한 루프가 발생하는데 어떻게 해결할 수 있나요?', excerpt: 'useEffect 안에서 state를 업데이트하면 무한 루프가 발생하는데...', author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['React', 'useEffect'], viewCount: 156, likeCount: 12, commentCount: 8, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T10:00:00', updatedAt: '2026-01-30T10:00:00' },
+        { id: 1002, courseTimeId: 1, type: 'tip', title: 'useState 초기값 설정 팁', content: '복잡한 초기값은 함수로 전달하면 성능이 개선됩니다. useState(() => computeInitialValue())', excerpt: '복잡한 초기값은 함수로 전달하면 성능이 개선됩니다...', author: { id: 16, name: '이학습', avatar: null }, category: 'tip', tags: ['React', 'useState', '성능'], viewCount: 234, likeCount: 45, commentCount: 5, isLiked: true, isPinned: true, createdAt: '2026-01-29T14:30:00', updatedAt: '2026-01-29T14:30:00' },
+        { id: 1003, courseTimeId: 1, type: 'discussion', title: '5주차 과제 같이 풀어보실 분!', content: '5주차 과제가 어려운데 같이 화면공유하면서 풀어보실 분 계신가요?', excerpt: '5주차 과제가 어려운데 같이 화면공유하면서 풀어보실 분...', author: { id: 17, name: '박코딩', avatar: null }, category: 'study', tags: ['스터디', '과제'], viewCount: 89, likeCount: 8, commentCount: 12, isLiked: false, isPinned: false, createdAt: '2026-01-28T09:00:00', updatedAt: '2026-01-28T09:00:00' },
+        { id: 1004, courseTimeId: 1, type: 'question', title: 'props drilling 해결법이 궁금합니다', content: '컴포넌트 depth가 깊어지면서 props를 계속 내려주는 게 불편한데 좋은 방법이 있을까요?', excerpt: '컴포넌트 depth가 깊어지면서 props를 계속 내려주는 게...', author: { id: 18, name: '최프론트', avatar: null }, category: 'qna', tags: ['React', 'Context', 'props'], viewCount: 198, likeCount: 23, commentCount: 15, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-27T16:00:00', updatedAt: '2026-01-27T16:00:00' },
+        { id: 1005, courseTimeId: 1, type: 'tip', title: 'React DevTools 활용 꿀팁', content: 'React DevTools의 Profiler 기능을 활용하면 렌더링 성능을 쉽게 분석할 수 있습니다.', excerpt: 'React DevTools의 Profiler 기능을 활용하면...', author: { id: 14, name: '정학습', avatar: null }, category: 'tip', tags: ['React', 'DevTools', '디버깅'], viewCount: 312, likeCount: 56, commentCount: 7, isLiked: true, isPinned: false, createdAt: '2026-01-26T11:00:00', updatedAt: '2026-01-26T11:00:00' },
+      ],
+      // TypeScript 마스터 클래스 - 2024년 1기
+      2: [
+        { id: 2001, courseTimeId: 2, type: 'question', title: '제네릭 타입 추론이 안되는 경우', content: '함수에서 제네릭을 사용했는데 타입이 자동으로 추론이 안됩니다. 어떻게 해야 하나요?', excerpt: '함수에서 제네릭을 사용했는데 타입이 자동으로 추론이...', author: { id: 21, name: '타입왕', avatar: null }, category: 'qna', tags: ['TypeScript', '제네릭'], viewCount: 145, likeCount: 18, commentCount: 11, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T11:00:00', updatedAt: '2026-01-30T11:00:00' },
+        { id: 2002, courseTimeId: 2, type: 'tip', title: 'Utility Types 정리', content: 'Partial, Required, Pick, Omit 등 자주 사용하는 유틸리티 타입을 정리해봤습니다.', excerpt: 'Partial, Required, Pick, Omit 등 자주 사용하는...', author: { id: 22, name: '스크립터', avatar: null }, category: 'tip', tags: ['TypeScript', 'UtilityTypes'], viewCount: 456, likeCount: 89, commentCount: 14, isLiked: true, isPinned: true, createdAt: '2026-01-29T09:30:00', updatedAt: '2026-01-29T09:30:00' },
+        { id: 2003, courseTimeId: 2, type: 'discussion', title: 'any vs unknown 언제 사용해야 할까요?', content: 'any와 unknown의 차이는 알겠는데, 실무에서 unknown을 언제 사용해야 하는지 궁금합니다.', excerpt: 'any와 unknown의 차이는 알겠는데, 실무에서...', author: { id: 15, name: '김개발', avatar: null }, category: 'discussion', tags: ['TypeScript', 'any', 'unknown'], viewCount: 234, likeCount: 34, commentCount: 23, isLiked: false, isPinned: false, createdAt: '2026-01-28T14:00:00', updatedAt: '2026-01-28T14:00:00' },
+        { id: 2004, courseTimeId: 2, type: 'question', title: 'tsconfig strict 모드 관련 질문', content: 'strict 모드를 켜면 에러가 너무 많이 나는데, 하나씩 켜는 게 좋을까요?', excerpt: 'strict 모드를 켜면 에러가 너무 많이 나는데...', author: { id: 23, name: '코드장인', avatar: null }, category: 'qna', tags: ['TypeScript', 'tsconfig'], viewCount: 167, likeCount: 21, commentCount: 9, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-27T10:00:00', updatedAt: '2026-01-27T10:00:00' },
+      ],
+      // AWS 클라우드 입문 - 2024년 2기
+      3: [
+        { id: 3001, courseTimeId: 3, type: 'question', title: 'EC2 인스턴스 SSH 접속 오류', content: 'EC2 인스턴스에 SSH 접속이 안되는데 보안그룹 설정은 맞는 것 같습니다. 확인해볼 부분이 있을까요?', excerpt: 'EC2 인스턴스에 SSH 접속이 안되는데 보안그룹 설정은...', author: { id: 24, name: '클라우드러버', avatar: null }, category: 'qna', tags: ['AWS', 'EC2', 'SSH'], viewCount: 189, likeCount: 15, commentCount: 12, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T09:00:00', updatedAt: '2026-01-30T09:00:00' },
+        { id: 3002, courseTimeId: 3, type: 'tip', title: 'AWS 프리티어 비용 절약 팁', content: '프리티어 사용 시 예상치 못한 비용이 발생하지 않도록 알람 설정하는 방법을 공유합니다.', excerpt: '프리티어 사용 시 예상치 못한 비용이 발생하지 않도록...', author: { id: 25, name: '서버리스맨', avatar: null }, category: 'tip', tags: ['AWS', '프리티어', '비용'], viewCount: 567, likeCount: 123, commentCount: 18, isLiked: true, isPinned: true, createdAt: '2026-01-29T15:00:00', updatedAt: '2026-01-29T15:00:00' },
+        { id: 3003, courseTimeId: 3, type: 'discussion', title: 'SAA 자격증 스터디 모집', content: 'AWS Solutions Architect Associate 자격증 준비하시는 분들 같이 스터디 하실래요?', excerpt: 'AWS Solutions Architect Associate 자격증 준비하시는 분들...', author: { id: 14, name: '정학습', avatar: null }, category: 'study', tags: ['AWS', '자격증', 'SAA'], viewCount: 234, likeCount: 45, commentCount: 28, isLiked: false, isPinned: false, createdAt: '2026-01-28T11:00:00', updatedAt: '2026-01-28T11:00:00' },
+        { id: 3004, courseTimeId: 3, type: 'question', title: 'S3 버킷 정책 설정 문의', content: '특정 IP에서만 S3 버킷에 접근하도록 설정하고 싶은데 버킷 정책 예시 있을까요?', excerpt: '특정 IP에서만 S3 버킷에 접근하도록 설정하고 싶은데...', author: { id: 26, name: '데브옵스초보', avatar: null }, category: 'qna', tags: ['AWS', 'S3', '보안'], viewCount: 145, likeCount: 12, commentCount: 7, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-27T14:30:00', updatedAt: '2026-01-27T14:30:00' },
+        { id: 3005, courseTimeId: 3, type: 'tip', title: 'Lambda 콜드 스타트 줄이는 방법', content: 'Provisioned Concurrency 외에 콜드 스타트를 줄이는 실용적인 방법들을 정리했습니다.', excerpt: 'Provisioned Concurrency 외에 콜드 스타트를 줄이는...', author: { id: 17, name: '박코딩', avatar: null }, category: 'tip', tags: ['AWS', 'Lambda', '성능'], viewCount: 378, likeCount: 67, commentCount: 11, isLiked: true, isPinned: false, createdAt: '2026-01-26T10:00:00', updatedAt: '2026-01-26T10:00:00' },
+      ],
+      // Python 데이터 분석 - 무료 체험반
+      4: [
+        { id: 4001, courseTimeId: 4, type: 'question', title: 'pandas DataFrame merge 관련 질문', content: 'left join과 inner join의 차이가 헷갈립니다. 예시와 함께 설명해주실 수 있나요?', excerpt: 'left join과 inner join의 차이가 헷갈립니다...', author: { id: 29, name: '데이터사이언티스트', avatar: null }, category: 'qna', tags: ['Python', 'pandas', 'merge'], viewCount: 123, likeCount: 8, commentCount: 6, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-29T10:00:00', updatedAt: '2026-01-29T10:00:00' },
+        { id: 4002, courseTimeId: 4, type: 'tip', title: 'matplotlib 한글 깨짐 해결법', content: 'matplotlib에서 한글이 깨질 때 폰트 설정하는 방법을 공유합니다.', excerpt: 'matplotlib에서 한글이 깨질 때 폰트 설정하는 방법을...', author: { id: 30, name: '분석초보', avatar: null }, category: 'tip', tags: ['Python', 'matplotlib', '한글'], viewCount: 345, likeCount: 56, commentCount: 9, isLiked: true, isPinned: true, createdAt: '2026-01-28T14:00:00', updatedAt: '2026-01-28T14:00:00' },
+        { id: 4003, courseTimeId: 4, type: 'discussion', title: '데이터 분석 실무에서 많이 쓰는 라이브러리', content: '실무에서 pandas, numpy 외에 어떤 라이브러리를 많이 사용하시나요?', excerpt: '실무에서 pandas, numpy 외에 어떤 라이브러리를...', author: { id: 31, name: '파이썬러버', avatar: null }, category: 'discussion', tags: ['Python', '라이브러리', '실무'], viewCount: 198, likeCount: 23, commentCount: 15, isLiked: false, isPinned: false, createdAt: '2026-01-27T09:00:00', updatedAt: '2026-01-27T09:00:00' },
+      ],
+      // Next.js 실전 프로젝트
+      5: [
+        { id: 5001, courseTimeId: 5, type: 'question', title: 'App Router에서 loading.tsx가 안보여요', content: 'loading.tsx 파일을 만들었는데 로딩 UI가 안보입니다. 뭐가 문제일까요?', excerpt: 'loading.tsx 파일을 만들었는데 로딩 UI가 안보입니다...', author: { id: 33, name: '풀스택지망', avatar: null }, category: 'qna', tags: ['Next.js', 'AppRouter', 'loading'], viewCount: 167, likeCount: 14, commentCount: 9, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T10:30:00', updatedAt: '2026-01-30T10:30:00' },
+        { id: 5002, courseTimeId: 5, type: 'tip', title: 'Server Actions 실전 패턴', content: 'Server Actions를 폼 처리에 활용하는 실전 패턴을 정리했습니다.', excerpt: 'Server Actions를 폼 처리에 활용하는 실전 패턴을...', author: { id: 34, name: '리액트마스터', avatar: null }, category: 'tip', tags: ['Next.js', 'ServerActions', '폼'], viewCount: 456, likeCount: 89, commentCount: 12, isLiked: true, isPinned: true, createdAt: '2026-01-29T11:00:00', updatedAt: '2026-01-29T11:00:00' },
+        { id: 5003, courseTimeId: 5, type: 'discussion', title: 'Vercel vs AWS 어디에 배포하시나요?', content: '개인 프로젝트 배포할 때 Vercel과 AWS 중 어디를 선호하시나요?', excerpt: '개인 프로젝트 배포할 때 Vercel과 AWS 중 어디를...', author: { id: 35, name: '프론트엔드장인', avatar: null }, category: 'discussion', tags: ['Next.js', '배포', 'Vercel', 'AWS'], viewCount: 289, likeCount: 34, commentCount: 28, isLiked: false, isPinned: false, createdAt: '2026-01-28T15:00:00', updatedAt: '2026-01-28T15:00:00' },
+        { id: 5004, courseTimeId: 5, type: 'question', title: 'ISR revalidate 시간 설정 기준', content: 'ISR에서 revalidate 시간을 어떤 기준으로 설정하시나요? 콘텐츠 유형별로 권장 값이 있을까요?', excerpt: 'ISR에서 revalidate 시간을 어떤 기준으로 설정하시나요...', author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['Next.js', 'ISR', '캐싱'], viewCount: 198, likeCount: 21, commentCount: 11, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-27T10:00:00', updatedAt: '2026-01-27T10:00:00' },
+        { id: 5005, courseTimeId: 5, type: 'tip', title: 'Next.js + Prisma 연동 가이드', content: 'Next.js 프로젝트에서 Prisma ORM을 설정하고 사용하는 방법을 정리했습니다.', excerpt: 'Next.js 프로젝트에서 Prisma ORM을 설정하고 사용하는...', author: { id: 36, name: '웹개발러', avatar: null }, category: 'tip', tags: ['Next.js', 'Prisma', 'ORM'], viewCount: 345, likeCount: 67, commentCount: 8, isLiked: true, isPinned: false, createdAt: '2026-01-26T14:00:00', updatedAt: '2026-01-26T14:00:00' },
+      ],
+    };
+
+    const posts = communityPostsMap[timeId] || [
+      { id: 9001, courseTimeId: timeId, type: 'question' as const, title: '강의 관련 질문입니다', content: '이 부분이 이해가 안되는데 설명 부탁드립니다.', excerpt: '이 부분이 이해가 안되는데...', author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['질문'], viewCount: 45, likeCount: 3, commentCount: 2, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-28T10:00:00', updatedAt: '2026-01-28T10:00:00' },
+      { id: 9002, courseTimeId: timeId, type: 'tip' as const, title: '강의 수강 팁 공유', content: '이렇게 하면 더 효율적으로 학습할 수 있어요.', excerpt: '이렇게 하면 더 효율적으로 학습할 수...', author: { id: 16, name: '이학습', avatar: null }, category: 'tip', tags: ['팁'], viewCount: 78, likeCount: 12, commentCount: 4, isLiked: true, isPinned: false, createdAt: '2026-01-27T14:00:00', updatedAt: '2026-01-27T14:00:00' },
+    ];
+
+    const startIndex = page * pageSize;
+    const paginatedPosts = posts.slice(startIndex, startIndex + pageSize);
+
+    return HttpResponse.json(apiResponse({
+      posts: paginatedPosts,
+      totalCount: posts.length,
+      page,
+      pageSize,
+      totalPages: Math.ceil(posts.length / pageSize),
+    }));
+  }),
+
+  // 강의별 커뮤니티 게시글 상세
+  http.get('/api/times/:timeId/community/posts/:postId', async ({ params }) => {
+    await delay(30);
+    const postId = Number(params.postId);
+    const timeId = Number(params.timeId);
+
+    // 게시글 상세 데이터 (목록과 동일한 데이터 + 전체 content)
+    const postDetailMap: Record<number, {
+      id: number;
+      courseTimeId: number;
+      type: 'question' | 'discussion' | 'tip' | 'review' | 'announcement';
+      title: string;
+      content: string;
+      author: { id: number; name: string; avatar: string | null };
+      category: string;
+      tags: string[];
+      viewCount: number;
+      likeCount: number;
+      commentCount: number;
+      isLiked: boolean;
+      isPinned: boolean;
+      isSolved?: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }> = {
+      // React 기초 강의 커뮤니티
+      1001: { id: 1001, courseTimeId: 1, type: 'question', title: 'useEffect 무한 루프 해결 방법', content: `useEffect 안에서 state를 업데이트하면 무한 루프가 발생하는데 어떻게 해결할 수 있나요?
+
+예를 들어 아래 코드에서 무한 루프가 발생합니다:
+
+\`\`\`jsx
+const [count, setCount] = useState(0);
+
+useEffect(() => {
+  setCount(count + 1);
+}, [count]);
+\`\`\`
+
+의존성 배열을 비우면 되긴 하는데, 그러면 count 값을 제대로 사용할 수 없을 것 같아서요.
+어떻게 해결해야 할까요?`, author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['React', 'useEffect'], viewCount: 156, likeCount: 12, commentCount: 8, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T10:00:00', updatedAt: '2026-01-30T10:00:00' },
+      1002: { id: 1002, courseTimeId: 1, type: 'tip', title: 'useState 초기값 설정 팁', content: `복잡한 초기값은 함수로 전달하면 성능이 개선됩니다!
+
+## 일반적인 방식 (매 렌더링마다 실행)
+\`\`\`jsx
+const [items, setItems] = useState(expensiveComputation());
+\`\`\`
+
+## 권장 방식 (최초 렌더링에만 실행)
+\`\`\`jsx
+const [items, setItems] = useState(() => expensiveComputation());
+\`\`\`
+
+이렇게 하면 초기 렌더링 시에만 함수가 실행되어 성능이 개선됩니다.
+특히 localStorage에서 데이터를 읽어올 때 유용해요!`, author: { id: 16, name: '이학습', avatar: null }, category: 'tip', tags: ['React', 'useState', '성능'], viewCount: 234, likeCount: 45, commentCount: 5, isLiked: true, isPinned: true, createdAt: '2026-01-29T14:30:00', updatedAt: '2026-01-29T14:30:00' },
+      1003: { id: 1003, courseTimeId: 1, type: 'discussion', title: '5주차 과제 같이 풀어보실 분!', content: `5주차 과제가 어려운데 같이 화면공유하면서 풀어보실 분 계신가요?
+
+## 과제 내용
+- Todo 앱 만들기
+- CRUD 기능 구현
+- localStorage 연동
+
+## 스터디 정보
+- 일시: 이번 주 토요일 오후 2시
+- 방식: 디스코드 화면공유
+- 인원: 3~4명
+
+관심 있으시면 댓글 남겨주세요!`, author: { id: 17, name: '박코딩', avatar: null }, category: 'study', tags: ['스터디', '과제'], viewCount: 89, likeCount: 8, commentCount: 12, isLiked: false, isPinned: false, createdAt: '2026-01-28T09:00:00', updatedAt: '2026-01-28T09:00:00' },
+      1004: { id: 1004, courseTimeId: 1, type: 'question', title: 'props drilling 해결법이 궁금합니다', content: `컴포넌트 depth가 깊어지면서 props를 계속 내려주는 게 불편한데 좋은 방법이 있을까요?
+
+현재 구조가 이런 식입니다:
+App → Layout → Sidebar → Menu → MenuItem
+
+MenuItem에서 App의 state를 사용하려면 모든 중간 컴포넌트에 props를 전달해야 해서 코드가 지저분해지네요.
+
+Context API를 사용하면 된다고 들었는데, 언제 Context를 쓰고 언제 props를 써야 할지 기준이 궁금합니다.`, author: { id: 18, name: '최프론트', avatar: null }, category: 'qna', tags: ['React', 'Context', 'props'], viewCount: 198, likeCount: 23, commentCount: 15, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-27T16:00:00', updatedAt: '2026-01-27T16:00:00' },
+      1005: { id: 1005, courseTimeId: 1, type: 'tip', title: 'React DevTools 활용 꿀팁', content: `React DevTools의 Profiler 기능을 활용하면 렌더링 성능을 쉽게 분석할 수 있습니다!
+
+## Profiler 사용법
+1. React DevTools 설치
+2. Profiler 탭 선택
+3. Record 버튼 클릭
+4. 앱 조작
+5. Stop 버튼 클릭
+
+## 확인할 수 있는 정보
+- 각 컴포넌트의 렌더링 시간
+- 불필요한 리렌더링 발생 여부
+- 렌더링 원인 (props 변경, state 변경 등)
+
+특히 "Highlight updates when components render" 옵션을 켜면 어떤 컴포넌트가 리렌더링되는지 시각적으로 확인할 수 있어요!`, author: { id: 14, name: '정학습', avatar: null }, category: 'tip', tags: ['React', 'DevTools', '디버깅'], viewCount: 312, likeCount: 56, commentCount: 7, isLiked: true, isPinned: false, createdAt: '2026-01-26T11:00:00', updatedAt: '2026-01-26T11:00:00' },
+
+      // TypeScript 마스터 클래스 커뮤니티
+      2001: { id: 2001, courseTimeId: 2, type: 'question', title: '제네릭 타입 추론이 안되는 경우', content: `함수에서 제네릭을 사용했는데 타입이 자동으로 추론이 안됩니다.
+
+\`\`\`typescript
+function getValue<T>(obj: object, key: string): T {
+  return obj[key];
+}
+
+const result = getValue(user, 'name'); // result가 unknown으로 추론됨
+\`\`\`
+
+T가 자동으로 string으로 추론되길 원하는데, 어떻게 해야 하나요?`, author: { id: 21, name: '타입왕', avatar: null }, category: 'qna', tags: ['TypeScript', '제네릭'], viewCount: 145, likeCount: 18, commentCount: 11, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T11:00:00', updatedAt: '2026-01-30T11:00:00' },
+      2002: { id: 2002, courseTimeId: 2, type: 'tip', title: 'Utility Types 정리', content: `Partial, Required, Pick, Omit 등 자주 사용하는 유틸리티 타입을 정리해봤습니다.
+
+## Partial<T>
+모든 프로퍼티를 optional로 만듦
+\`\`\`typescript
+type PartialUser = Partial<User>; // { name?: string; age?: number; }
+\`\`\`
+
+## Required<T>
+모든 프로퍼티를 required로 만듦
+
+## Pick<T, K>
+특정 프로퍼티만 선택
+\`\`\`typescript
+type UserName = Pick<User, 'name'>; // { name: string; }
+\`\`\`
+
+## Omit<T, K>
+특정 프로퍼티 제외
+\`\`\`typescript
+type UserWithoutAge = Omit<User, 'age'>; // { name: string; }
+\`\`\`
+
+실무에서 정말 자주 사용하니 꼭 익혀두세요!`, author: { id: 22, name: '스크립터', avatar: null }, category: 'tip', tags: ['TypeScript', 'UtilityTypes'], viewCount: 456, likeCount: 89, commentCount: 14, isLiked: true, isPinned: true, createdAt: '2026-01-29T09:30:00', updatedAt: '2026-01-29T09:30:00' },
+      2003: { id: 2003, courseTimeId: 2, type: 'discussion', title: 'any vs unknown 언제 사용해야 할까요?', content: `any와 unknown의 차이는 알겠는데, 실무에서 unknown을 언제 사용해야 하는지 궁금합니다.
+
+## 제가 이해한 차이점
+- any: 타입 체크 완전 무시
+- unknown: 타입 체크는 하지만 사용 전 타입 좁히기 필요
+
+## 궁금한 점
+1. API 응답을 받을 때 unknown을 쓰면 매번 타입 가드를 해야 하는데, 번거롭지 않나요?
+2. 실무에서 unknown을 적극적으로 사용하시나요?
+3. any를 써야만 하는 상황이 있나요?
+
+여러분의 경험을 공유해주세요!`, author: { id: 15, name: '김개발', avatar: null }, category: 'discussion', tags: ['TypeScript', 'any', 'unknown'], viewCount: 234, likeCount: 34, commentCount: 23, isLiked: false, isPinned: false, createdAt: '2026-01-28T14:00:00', updatedAt: '2026-01-28T14:00:00' },
+      2004: { id: 2004, courseTimeId: 2, type: 'question', title: 'tsconfig strict 모드 관련 질문', content: `strict 모드를 켜면 에러가 너무 많이 나는데, 하나씩 켜는 게 좋을까요?
+
+현재 레거시 프로젝트에 TypeScript를 도입하려고 하는데요.
+strict: true로 설정하면 에러가 500개 넘게 나옵니다...
+
+점진적으로 마이그레이션하려면 어떤 순서로 옵션을 켜는 게 좋을까요?
+
+\`\`\`json
+{
+  "compilerOptions": {
+    "strict": false, // 일단 false로 시작
+    "noImplicitAny": true, // 이것부터?
+    "strictNullChecks": true, // 아니면 이것부터?
+  }
+}
+\`\`\``, author: { id: 23, name: '코드장인', avatar: null }, category: 'qna', tags: ['TypeScript', 'tsconfig'], viewCount: 167, likeCount: 21, commentCount: 9, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-27T10:00:00', updatedAt: '2026-01-27T10:00:00' },
+
+      // AWS 클라우드 입문 커뮤니티
+      3001: { id: 3001, courseTimeId: 3, type: 'question', title: 'EC2 인스턴스 SSH 접속 오류', content: `EC2 인스턴스에 SSH 접속이 안되는데 보안그룹 설정은 맞는 것 같습니다.
+
+## 현재 상황
+- 인바운드 규칙: SSH (22번 포트) - 0.0.0.0/0 허용
+- 키 페어: 다운로드 받은 .pem 파일 사용
+
+## 에러 메시지
+\`\`\`
+Permission denied (publickey).
+\`\`\`
+
+## 시도해본 것
+- 보안그룹 규칙 확인 ✓
+- 퍼블릭 IP 확인 ✓
+- 인스턴스 상태 running 확인 ✓
+
+혹시 확인해볼 부분이 더 있을까요?`, author: { id: 24, name: '클라우드러버', avatar: null }, category: 'qna', tags: ['AWS', 'EC2', 'SSH'], viewCount: 189, likeCount: 15, commentCount: 12, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T09:00:00', updatedAt: '2026-01-30T09:00:00' },
+      3002: { id: 3002, courseTimeId: 3, type: 'tip', title: 'AWS 프리티어 비용 절약 팁', content: `프리티어 사용 시 예상치 못한 비용이 발생하지 않도록 알람 설정하는 방법을 공유합니다!
+
+## 1. 예산 알림 설정
+AWS Budgets에서 월 예산을 $0으로 설정하고 알림을 받으세요.
+
+## 2. 프리티어 사용량 모니터링
+Billing Dashboard → Free Tier에서 사용량 확인
+
+## 3. 주의해야 할 서비스들
+- **EBS**: EC2 중지해도 스토리지 비용 발생!
+- **Elastic IP**: 사용 안 하면 비용 청구
+- **NAT Gateway**: 프리티어 아님, 시간당 과금
+- **RDS**: Multi-AZ 옵션 비활성화 확인
+
+## 4. 꿀팁
+실습 후 리소스는 꼭 삭제하세요. CloudFormation 사용하면 한번에 정리 가능!`, author: { id: 25, name: '서버리스맨', avatar: null }, category: 'tip', tags: ['AWS', '프리티어', '비용'], viewCount: 567, likeCount: 123, commentCount: 18, isLiked: true, isPinned: true, createdAt: '2026-01-29T15:00:00', updatedAt: '2026-01-29T15:00:00' },
+      3003: { id: 3003, courseTimeId: 3, type: 'discussion', title: 'SAA 자격증 스터디 모집', content: `AWS Solutions Architect Associate 자격증 준비하시는 분들 같이 스터디 하실래요?
+
+## 스터디 계획
+- 기간: 4주 (2월 한 달)
+- 방식: 주 2회 온라인 미팅
+- 교재: 강의 내용 + Examtopics
+
+## 진행 방식
+1. 각자 해당 주차 범위 공부
+2. 모의고사 풀이
+3. 오답 토론
+
+## 모집 인원
+5명 (현재 2명)
+
+관심 있으시면 댓글 남겨주세요!
+오픈채팅방 링크 공유드릴게요.`, author: { id: 14, name: '정학습', avatar: null }, category: 'study', tags: ['AWS', '자격증', 'SAA'], viewCount: 234, likeCount: 45, commentCount: 28, isLiked: false, isPinned: false, createdAt: '2026-01-28T11:00:00', updatedAt: '2026-01-28T11:00:00' },
+
+      // Python 데이터 분석 커뮤니티
+      4001: { id: 4001, courseTimeId: 4, type: 'question', title: 'pandas DataFrame merge 관련 질문', content: `left join과 inner join의 차이가 헷갈립니다.
+
+\`\`\`python
+df1 = pd.DataFrame({'key': ['A', 'B', 'C'], 'value1': [1, 2, 3]})
+df2 = pd.DataFrame({'key': ['A', 'B', 'D'], 'value2': [4, 5, 6]})
+
+# 이 두 가지의 차이가 뭔가요?
+pd.merge(df1, df2, on='key', how='left')
+pd.merge(df1, df2, on='key', how='inner')
+\`\`\`
+
+예시와 함께 설명해주실 수 있나요?`, author: { id: 29, name: '데이터사이언티스트', avatar: null }, category: 'qna', tags: ['Python', 'pandas', 'merge'], viewCount: 123, likeCount: 8, commentCount: 6, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-29T10:00:00', updatedAt: '2026-01-29T10:00:00' },
+      4002: { id: 4002, courseTimeId: 4, type: 'tip', title: 'matplotlib 한글 깨짐 해결법', content: `matplotlib에서 한글이 깨질 때 폰트 설정하는 방법을 공유합니다!
+
+## Windows
+\`\`\`python
+import matplotlib.pyplot as plt
+plt.rc('font', family='Malgun Gothic')
+plt.rcParams['axes.unicode_minus'] = False
+\`\`\`
+
+## Mac
+\`\`\`python
+plt.rc('font', family='AppleGothic')
+plt.rcParams['axes.unicode_minus'] = False
+\`\`\`
+
+## Colab
+\`\`\`python
+!apt-get install fonts-nanum
+plt.rc('font', family='NanumGothic')
+\`\`\`
+
+이 코드를 노트북 상단에 한 번만 실행하면 됩니다!`, author: { id: 30, name: '분석초보', avatar: null }, category: 'tip', tags: ['Python', 'matplotlib', '한글'], viewCount: 345, likeCount: 56, commentCount: 9, isLiked: true, isPinned: true, createdAt: '2026-01-28T14:00:00', updatedAt: '2026-01-28T14:00:00' },
+
+      // Next.js 실전 프로젝트 커뮤니티
+      5001: { id: 5001, courseTimeId: 5, type: 'question', title: 'App Router에서 loading.tsx가 안보여요', content: `loading.tsx 파일을 만들었는데 로딩 UI가 안보입니다.
+
+## 파일 구조
+\`\`\`
+app/
+  dashboard/
+    page.tsx
+    loading.tsx
+\`\`\`
+
+## loading.tsx
+\`\`\`tsx
+export default function Loading() {
+  return <div>로딩 중...</div>
+}
+\`\`\`
+
+page.tsx에서 데이터를 fetch하는데, loading.tsx가 표시되지 않고 바로 페이지가 나타납니다.
+뭐가 문제일까요?`, author: { id: 33, name: '풀스택지망', avatar: null }, category: 'qna', tags: ['Next.js', 'AppRouter', 'loading'], viewCount: 167, likeCount: 14, commentCount: 9, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T10:30:00', updatedAt: '2026-01-30T10:30:00' },
+      5002: { id: 5002, courseTimeId: 5, type: 'tip', title: 'Server Actions 실전 패턴', content: `Server Actions를 폼 처리에 활용하는 실전 패턴을 정리했습니다!
+
+## 기본 패턴
+\`\`\`tsx
+// actions.ts
+'use server'
+
+export async function createPost(formData: FormData) {
+  const title = formData.get('title');
+  // DB 저장 로직
+  revalidatePath('/posts');
+}
+\`\`\`
+
+## 폼 컴포넌트
+\`\`\`tsx
+export function PostForm() {
+  return (
+    <form action={createPost}>
+      <input name="title" />
+      <SubmitButton />
+    </form>
+  );
+}
+\`\`\`
+
+## useFormStatus 활용
+\`\`\`tsx
+'use client'
+import { useFormStatus } from 'react-dom';
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return <button disabled={pending}>
+    {pending ? '저장 중...' : '저장'}
+  </button>;
+}
+\`\`\`
+
+JavaScript 없이도 폼이 동작하니 접근성도 좋아요!`, author: { id: 34, name: '리액트마스터', avatar: null }, category: 'tip', tags: ['Next.js', 'ServerActions', '폼'], viewCount: 456, likeCount: 89, commentCount: 12, isLiked: true, isPinned: true, createdAt: '2026-01-29T11:00:00', updatedAt: '2026-01-29T11:00:00' },
+      5003: { id: 5003, courseTimeId: 5, type: 'discussion', title: 'Vercel vs AWS 어디에 배포하시나요?', content: `개인 프로젝트 배포할 때 Vercel과 AWS 중 어디를 선호하시나요?
+
+## Vercel 장점
+- Next.js와 완벽한 통합
+- 간편한 배포 (Git push만 하면 자동 배포)
+- 무료 티어가 넉넉함
+
+## AWS 장점
+- 더 많은 커스터마이징 가능
+- 다른 AWS 서비스와 연동 쉬움
+- 대규모 서비스에 적합
+
+여러분은 어떤 것을 선호하시나요? 이유도 함께 공유해주세요!`, author: { id: 35, name: '프론트엔드장인', avatar: null }, category: 'discussion', tags: ['Next.js', '배포', 'Vercel', 'AWS'], viewCount: 289, likeCount: 34, commentCount: 28, isLiked: false, isPinned: false, createdAt: '2026-01-28T15:00:00', updatedAt: '2026-01-28T15:00:00' },
+      5004: { id: 5004, courseTimeId: 5, type: 'question', title: 'ISR revalidate 시간 설정 기준', content: `ISR에서 revalidate 시간을 어떤 기준으로 설정하시나요?
+
+\`\`\`tsx
+export const revalidate = 60; // 60초마다 재생성
+\`\`\`
+
+콘텐츠 유형별로 권장 값이 있을까요?
+
+예를 들어:
+- 블로그 포스트: ?
+- 상품 목록: ?
+- 사용자 프로필: ?
+
+실무에서 어떻게 설정하시는지 궁금합니다.`, author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['Next.js', 'ISR', '캐싱'], viewCount: 198, likeCount: 21, commentCount: 11, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-27T10:00:00', updatedAt: '2026-01-27T10:00:00' },
+      5005: { id: 5005, courseTimeId: 5, type: 'tip', title: 'Next.js + Prisma 연동 가이드', content: `Next.js 프로젝트에서 Prisma ORM을 설정하고 사용하는 방법을 정리했습니다!
+
+## 1. 설치
+\`\`\`bash
+npm install prisma @prisma/client
+npx prisma init
+\`\`\`
+
+## 2. 스키마 정의 (prisma/schema.prisma)
+\`\`\`prisma
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String?
+  createdAt DateTime @default(now())
+}
+\`\`\`
+
+## 3. DB 마이그레이션
+\`\`\`bash
+npx prisma migrate dev --name init
+\`\`\`
+
+## 4. Prisma Client 사용
+\`\`\`tsx
+import { PrismaClient } from '@prisma/client'
+const prisma = new PrismaClient()
+
+// Server Component에서 사용
+const posts = await prisma.post.findMany()
+\`\`\`
+
+Server Components와 함께 사용하면 정말 편해요!`, author: { id: 36, name: '웹개발러', avatar: null }, category: 'tip', tags: ['Next.js', 'Prisma', 'ORM'], viewCount: 345, likeCount: 67, commentCount: 8, isLiked: true, isPinned: false, createdAt: '2026-01-26T14:00:00', updatedAt: '2026-01-26T14:00:00' },
+
+      // AWS 클라우드 입문 - 추가 게시글
+      3004: { id: 3004, courseTimeId: 3, type: 'question', title: 'S3 버킷 정책 설정 문의', content: `특정 IP에서만 S3 버킷에 접근하도록 설정하고 싶은데 버킷 정책 예시 있을까요?
+
+현재 상황:
+- S3 버킷에 정적 파일들을 업로드해놨습니다
+- 회사 IP에서만 접근 가능하게 하고 싶어요
+
+\`\`\`json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::my-bucket/*",
+      "Condition": {
+        "IpAddress": {
+          "aws:SourceIp": "123.456.789.0/24"
+        }
+      }
+    }
+  ]
+}
+\`\`\`
+
+이런 식으로 설정하면 되는 건가요?`, author: { id: 26, name: '데브옵스초보', avatar: null }, category: 'qna', tags: ['AWS', 'S3', '보안'], viewCount: 145, likeCount: 12, commentCount: 7, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-27T14:30:00', updatedAt: '2026-01-27T14:30:00' },
+      3005: { id: 3005, courseTimeId: 3, type: 'tip', title: 'Lambda 콜드 스타트 줄이는 방법', content: `Provisioned Concurrency 외에 콜드 스타트를 줄이는 실용적인 방법들을 정리했습니다!
+
+## 1. 패키지 크기 줄이기
+- 불필요한 dependencies 제거
+- Lambda Layer 활용
+- webpack/esbuild로 번들링
+
+## 2. 런타임 선택
+- Python, Node.js가 Java보다 콜드 스타트가 빠름
+- ARM64 (Graviton2) 사용하면 x86보다 빠름
+
+## 3. 메모리 늘리기
+- 메모리를 늘리면 CPU도 함께 올라감
+- 128MB → 512MB로만 올려도 체감됨
+
+## 4. VPC 피하기 (가능하다면)
+- VPC 연결 시 ENI 생성으로 시간 소요
+- 꼭 필요한 경우가 아니면 VPC 밖에서 실행
+
+실제로 패키지 크기만 줄여도 2-3초 → 0.5초로 개선된 경험이 있어요!`, author: { id: 17, name: '박코딩', avatar: null }, category: 'tip', tags: ['AWS', 'Lambda', '성능'], viewCount: 378, likeCount: 67, commentCount: 11, isLiked: true, isPinned: false, createdAt: '2026-01-26T10:00:00', updatedAt: '2026-01-26T10:00:00' },
+
+      // Python 데이터 분석 - 추가 게시글
+      4003: { id: 4003, courseTimeId: 4, type: 'discussion', title: '데이터 분석 실무에서 많이 쓰는 라이브러리', content: `실무에서 pandas, numpy 외에 어떤 라이브러리를 많이 사용하시나요?
+
+제가 알고 있는 것들:
+- **시각화**: matplotlib, seaborn, plotly
+- **머신러닝**: scikit-learn, xgboost
+- **딥러닝**: tensorflow, pytorch
+
+실무에서 많이 쓰이는데 저는 모르는 라이브러리가 있을 것 같아서요.
+추천해주시면 공부해보려고 합니다!
+
+특히 데이터 전처리나 EDA 할 때 편리한 라이브러리가 있으면 알려주세요.`, author: { id: 31, name: '파이썬러버', avatar: null }, category: 'discussion', tags: ['Python', '라이브러리', '실무'], viewCount: 198, likeCount: 23, commentCount: 15, isLiked: false, isPinned: false, createdAt: '2026-01-27T09:00:00', updatedAt: '2026-01-27T09:00:00' },
+
+      // 기본 게시글 (timeId가 매칭되지 않는 강의용)
+      9001: { id: 9001, courseTimeId: 0, type: 'question', title: '강의 관련 질문입니다', content: `이 부분이 이해가 안되는데 설명 부탁드립니다.
+
+강의 3장에서 나온 내용 중에서 잘 모르겠는 부분이 있어요.
+
+혹시 비슷한 고민 하신 분 계신가요?
+같이 토론하면서 이해해보면 좋겠습니다.`, author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['질문'], viewCount: 45, likeCount: 3, commentCount: 2, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-28T10:00:00', updatedAt: '2026-01-28T10:00:00' },
+      9002: { id: 9002, courseTimeId: 0, type: 'tip', title: '강의 수강 팁 공유', content: `이렇게 하면 더 효율적으로 학습할 수 있어요!
+
+## 제가 사용하는 학습 방법
+1. 강의를 1.5배속으로 먼저 쭉 듣기
+2. 이해 안 되는 부분만 다시 정상 속도로 듣기
+3. 실습은 직접 코드 치면서 따라하기
+4. 배운 내용 노션에 정리하기
+
+이 방법으로 학습 시간을 많이 줄일 수 있었어요!`, author: { id: 16, name: '이학습', avatar: null }, category: 'tip', tags: ['팁'], viewCount: 78, likeCount: 12, commentCount: 4, isLiked: true, isPinned: false, createdAt: '2026-01-27T14:00:00', updatedAt: '2026-01-27T14:00:00' },
+    };
+
+    const post = postDetailMap[postId];
+
+    if (post) {
+      return HttpResponse.json(apiResponse({ ...post, comments: [] }));
+    }
+
+    // 찾지 못한 경우 기본 데이터 반환
+    return HttpResponse.json(apiResponse({
+      id: postId,
+      courseTimeId: timeId,
+      type: 'question' as const,
+      title: '강의 내용 관련 질문입니다',
+      content: `안녕하세요, 강의를 듣다가 궁금한 점이 생겨서 질문 드립니다.
+
+이번 강의에서 배운 내용 중에 이해가 잘 안 되는 부분이 있는데요.
+
+혹시 비슷한 경험이 있으신 분 계신가요?
+같이 이야기 나눠보면 좋겠습니다.
+
+감사합니다!`,
+      author: { id: 15, name: '김개발', avatar: null },
+      category: 'qna',
+      tags: ['질문', '강의'],
+      viewCount: 100,
+      likeCount: 10,
+      commentCount: 5,
+      isLiked: false,
+      isPinned: false,
+      isSolved: false,
+      createdAt: '2026-01-28T10:00:00',
+      updatedAt: '2026-01-28T10:00:00',
+      comments: [],
+    }));
+  }),
+
+  // 강의별 커뮤니티 게시글 작성
+  http.post('/api/times/:timeId/community/posts', async ({ params, request }) => {
+    await delay(50);
+    const body = await request.json() as { type: string; title: string; content: string; category: string; tags?: string[] };
+    const newPost = {
+      id: Date.now(),
+      courseTimeId: Number(params.timeId),
+      type: body.type,
+      title: body.title,
+      content: body.content,
+      excerpt: body.content.slice(0, 100),
+      author: { id: 14, name: '정학습', avatar: null },
+      category: body.category,
+      tags: body.tags || [],
+      viewCount: 0,
+      likeCount: 0,
+      commentCount: 0,
+      isLiked: false,
+      isPinned: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return HttpResponse.json(apiResponse(newPost), { status: 201 });
+  }),
+
+  // 강의별 커뮤니티 게시글 좋아요
+  http.post('/api/times/:timeId/community/posts/:postId/like', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ success: true }));
+  }),
+
+  http.delete('/api/times/:timeId/community/posts/:postId/like', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ success: true }));
+  }),
+
+  // 강의별 커뮤니티 댓글 목록
+  http.get('/api/times/:timeId/community/posts/:postId/comments', async ({ params }) => {
+    await delay(30);
+    const postId = Number(params.postId);
+
+    // postId 기반으로 다른 댓글 데이터 반환
+    const commentsMap: Record<number, Array<{
+      id: number;
+      postId: number;
+      author: { id: number; name: string; avatar: string | null };
+      content: string;
+      likeCount: number;
+      createdAt: string;
+      isEdited: boolean;
+    }>> = {
+      1001: [
+        { id: 1, postId: 1001, author: { id: 16, name: '이학습', avatar: null }, content: '의존성 배열에 state를 넣지 않으면 해결됩니다!', likeCount: 5, createdAt: '2026-01-30T11:00:00', isEdited: false },
+        { id: 2, postId: 1001, author: { id: 14, name: '정학습', avatar: null }, content: '또는 useCallback으로 함수를 메모이제이션 하는 방법도 있어요.', likeCount: 3, createdAt: '2026-01-30T12:00:00', isEdited: false },
+      ],
+      1002: [
+        { id: 3, postId: 1002, author: { id: 15, name: '김개발', avatar: null }, content: '좋은 팁 감사합니다! 바로 적용해봐야겠어요.', likeCount: 2, createdAt: '2026-01-29T15:00:00', isEdited: false },
+      ],
+      2001: [
+        { id: 4, postId: 2001, author: { id: 22, name: '스크립터', avatar: null }, content: 'extends 키워드로 타입 제약을 걸어보세요.', likeCount: 8, createdAt: '2026-01-30T12:00:00', isEdited: false },
+      ],
+      3001: [
+        { id: 5, postId: 3001, author: { id: 25, name: '서버리스맨', avatar: null }, content: '키 페어 권한(chmod 400)을 확인해보세요!', likeCount: 6, createdAt: '2026-01-30T10:00:00', isEdited: false },
+        { id: 6, postId: 3001, author: { id: 24, name: '클라우드러버', avatar: null }, content: '해결했습니다! 권한 문제였네요. 감사합니다!', likeCount: 2, createdAt: '2026-01-30T11:00:00', isEdited: false },
+      ],
+    };
+
+    const comments = commentsMap[postId] || [];
+
+    return HttpResponse.json(apiResponse({
+      comments,
+      totalCount: comments.length,
+      page: 0,
+      pageSize: 20,
+      totalPages: 1,
+    }));
+  }),
+
+  // 강의별 커뮤니티 댓글 작성
+  http.post('/api/times/:timeId/community/posts/:postId/comments', async ({ params, request }) => {
+    await delay(50);
+    const body = await request.json() as { content: string };
+    const newComment = {
+      id: Date.now(),
+      postId: Number(params.postId),
+      author: { id: 14, name: '정학습', avatar: null },
+      content: body.content,
+      likeCount: 0,
+      createdAt: new Date().toISOString(),
+      isEdited: false,
+    };
+    return HttpResponse.json(apiResponse(newComment), { status: 201 });
   }),
 
   // ========== Enrollments ==========

@@ -124,8 +124,8 @@ function convertCourseTimeToCardProps(courseTime: CourseTimeCatalogResponse, pai
     title: courseTime.title,
     instructor: instructorName,
     price: priceDisplay,
-    rating: 4.5, // CourseTime API에 rating이 없으므로 기본값
-    reviewCount: courseTime.currentEnrollment, // 리뷰 수 (수강생 수로 대체)
+    rating: courseTime.rating ?? 4.5,
+    reviewCount: courseTime.reviewCount ?? courseTime.currentEnrollment,
     studentCount: courseTime.currentEnrollment, // 참여자 수
     image: thumbnailUrl,
     tags,

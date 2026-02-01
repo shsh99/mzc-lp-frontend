@@ -44,6 +44,12 @@ interface BackendCourseDetailResponse {
   itemCount: number;
   createdAt: string;
   updatedAt: string;
+  // Mock 데이터에서 제공하는 추가 필드
+  rating?: number;
+  reviewCount?: number;
+  enrollmentCount?: number;
+  instructorId?: number;
+  instructorName?: string;
 }
 
 // 레벨 변환 매핑
@@ -116,10 +122,10 @@ const transformCourseDetail = (backend: BackendCourseDetailResponse): CourseDeta
   originalPrice: 0,
   discountRate: 0,
 
-  // 통계 정보 (백엔드에 없으므로 기본값)
-  rating: 4.5,
-  reviewCount: 0,
-  studentCount: 0,
+  // 통계 정보 (Mock 데이터에서 제공하면 사용)
+  rating: backend.rating ?? 4.5,
+  reviewCount: backend.reviewCount ?? 0,
+  studentCount: backend.enrollmentCount ?? 0,
 
   // 강의 정보
   totalHours: backend.estimatedHours || 0,
@@ -141,15 +147,15 @@ const transformCourseDetail = (backend: BackendCourseDetailResponse): CourseDeta
   // 커리큘럼
   curriculum: transformItemsToCurriculum(backend.items || []),
 
-  // 강사 정보 (백엔드에 없으므로 기본값)
+  // 강사 정보 (Mock 데이터에서 제공하면 사용)
   instructor: {
-    id: 1,
-    name: '강사',
+    id: backend.instructorId ?? 1,
+    name: backend.instructorName || '강사',
     bio: '전문 강사입니다.',
     profileImage: undefined,
     courseCount: 1,
-    studentCount: 0,
-    rating: 4.5,
+    studentCount: backend.enrollmentCount ?? 0,
+    rating: backend.rating ?? 4.5,
   },
 
   // 메타 정보
