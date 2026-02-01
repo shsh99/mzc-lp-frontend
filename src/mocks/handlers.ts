@@ -650,6 +650,167 @@ export const handlers = [
     return HttpResponse.json(apiResponse({ id: 100, message: '수강 신청이 완료되었습니다.' }));
   }),
 
+  // 차수별 수강 신청 (CourseTime enrollment)
+  http.post('/api/times/:id/enrollments', async ({ params }) => {
+    await delay(50);
+    const courseTimeId = Number(params.id);
+    const newEnrollment = {
+      id: mockEnrollments.length + 1,
+      userId: 14,
+      courseTimeId,
+      enrolledAt: new Date().toISOString(),
+      type: 'SELF',
+      status: 'ENROLLED',
+      enrollmentMethod: 'FIRST_COME',
+      progressPercent: 0,
+      score: null,
+      completedAt: null,
+      actualEndDate: null,
+    };
+    return HttpResponse.json(apiResponse(newEnrollment), { status: 201 });
+  }),
+
+  // 일괄 수강 신청
+  http.post('/api/enrollments/bulk', async ({ request }) => {
+    await delay(50);
+    const body = await request.json() as { courseTimeIds: number[] };
+    const results = body.courseTimeIds.map((courseTimeId, index) => ({
+      courseTimeId,
+      success: true,
+      enrollmentId: 100 + index,
+    }));
+    return HttpResponse.json(apiResponse({
+      results,
+      successCount: results.length,
+      failureCount: 0,
+    }));
+  }),
+
+  // 수강 신청 취소
+  http.post('/api/enrollments/:id/cancel', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ message: '수강 신청이 취소되었습니다.' }));
+  }),
+
+  // 학습 플레이어용 enrollment 데이터
+  http.get('/api/enrollments/:id/player', async ({ params }) => {
+    await delay(30);
+    const enrollmentId = Number(params.id);
+    const enrollment = mockEnrollments.find(e => e.id === enrollmentId);
+    if (!enrollment) {
+      return HttpResponse.json(
+        errorResponse('수강 정보를 찾을 수 없습니다.', 'ENROLLMENT_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    const courseTime = mockCourseTimes.find(ct => ct.id === enrollment.courseTimeId);
+    return HttpResponse.json(apiResponse({
+      enrollmentId: enrollment.id,
+      userId: enrollment.userId,
+      courseTimeId: enrollment.courseTimeId,
+      courseTimeName: courseTime?.title ?? '',
+      programId: courseTime?.program?.id ?? 0,
+      programTitle: courseTime?.program?.title ?? '',
+      snapshotId: enrollment.courseTimeId, // mock에서는 courseTimeId를 snapshotId로 사용
+      status: enrollment.status,
+      progressPercent: enrollment.progressPercent ?? 0,
+      enrolledAt: enrollment.enrolledAt,
+      completedAt: enrollment.completedAt,
+      classStartDate: courseTime?.classStartDate ?? '',
+      classEndDate: courseTime?.classEndDate ?? '',
+    }));
+  }),
+
+  // 학습 항목 진도 조회
+  http.get('/api/enrollments/:id/items/progress', async () => {
+    await delay(30);
+    // 완료된 항목 목록 반환
+    return HttpResponse.json(apiResponse({
+      completedItemIds: [2, 3, 4, 6], // 일부 항목 완료 상태
+      progressByItem: {
+        2: { completed: true, completedAt: '2026-01-20T10:00:00' },
+        3: { completed: true, completedAt: '2026-01-21T11:00:00' },
+        4: { completed: true, completedAt: '2026-01-22T09:00:00' },
+        6: { completed: true, completedAt: '2026-01-25T14:00:00' },
+      },
+    }));
+  }),
+
+  // 학습 항목 완료 처리
+  http.post('/api/enrollments/:enrollmentId/items/:itemId/complete', async ({ params }) => {
+    await delay(30);
+    const itemId = Number(params.itemId);
+    return HttpResponse.json(apiResponse({
+      itemId,
+      completed: true,
+      completedAt: new Date().toISOString(),
+    }));
+  }),
+
+  // 학습 진도 업데이트
+  http.patch('/api/enrollments/:id/progress', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ message: '진도가 업데이트되었습니다.' }));
+  }),
+
+  // ========== Snapshots (학습 플레이어용) ==========
+  // 스냅샷 항목 목록
+  http.get('/api/snapshots/:id/items', async () => {
+    await delay(30);
+    // 트리 구조의 학습 항목
+    return HttpResponse.json(apiResponse([
+      {
+        id: 1,
+        name: '1장. 기초 개념',
+        type: 'FOLDER',
+        parentId: null,
+        order: 1,
+        children: [
+          { id: 2, name: '강의 소개', type: 'VIDEO', parentId: 1, order: 1, duration: 600, learningObjectId: 101 },
+          { id: 3, name: '핵심 개념 이해', type: 'VIDEO', parentId: 1, order: 2, duration: 900, learningObjectId: 102 },
+          { id: 4, name: '개념 퀴즈', type: 'QUIZ', parentId: 1, order: 3, duration: 300, learningObjectId: 103 },
+        ],
+      },
+      {
+        id: 5,
+        name: '2장. 심화 학습',
+        type: 'FOLDER',
+        parentId: null,
+        order: 2,
+        children: [
+          { id: 6, name: '고급 기능', type: 'VIDEO', parentId: 5, order: 1, duration: 1200, learningObjectId: 104 },
+          { id: 7, name: '실습 과제', type: 'ASSIGNMENT', parentId: 5, order: 2, duration: 1800, learningObjectId: 105 },
+        ],
+      },
+      {
+        id: 8,
+        name: '3장. 프로젝트',
+        type: 'FOLDER',
+        parentId: null,
+        order: 3,
+        children: [
+          { id: 9, name: '프로젝트 소개', type: 'VIDEO', parentId: 8, order: 1, duration: 600, learningObjectId: 106 },
+          { id: 10, name: '최종 평가', type: 'EXAM', parentId: 8, order: 2, duration: 3600, learningObjectId: 107 },
+        ],
+      },
+    ]));
+  }),
+
+  // 스냅샷 순서 정보
+  http.get('/api/snapshots/:id/relations/ordered', async () => {
+    await delay(30);
+    // 플랫한 순서 목록 (학습 순서대로)
+    return HttpResponse.json(apiResponse([
+      { id: 2, name: '강의 소개', type: 'VIDEO', order: 1, duration: 600, learningObjectId: 101 },
+      { id: 3, name: '핵심 개념 이해', type: 'VIDEO', order: 2, duration: 900, learningObjectId: 102 },
+      { id: 4, name: '개념 퀴즈', type: 'QUIZ', order: 3, duration: 300, learningObjectId: 103 },
+      { id: 6, name: '고급 기능', type: 'VIDEO', order: 4, duration: 1200, learningObjectId: 104 },
+      { id: 7, name: '실습 과제', type: 'ASSIGNMENT', order: 5, duration: 1800, learningObjectId: 105 },
+      { id: 9, name: '프로젝트 소개', type: 'VIDEO', order: 6, duration: 600, learningObjectId: 106 },
+      { id: 10, name: '최종 평가', type: 'EXAM', order: 7, duration: 3600, learningObjectId: 107 },
+    ]));
+  }),
+
   // ========== Certificates ==========
   http.get('/api/certificates', async () => {
     await delay(30);
@@ -675,6 +836,36 @@ export const handlers = [
   http.get('/api/tu/notices/count', async () => {
     await delay(10);
     return HttpResponse.json(apiResponse({ count: mockTenantNotices.length }));
+  }),
+
+  // 공지사항 상세 조회
+  http.get('/api/tu/notices/:id', async ({ params }) => {
+    await delay(30);
+    const noticeId = Number(params.id);
+    const notice = mockTenantNotices.find(n => n.id === noticeId);
+    if (!notice) {
+      return HttpResponse.json(
+        errorResponse('공지사항을 찾을 수 없습니다.', 'NOTICE_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    // 상세 정보 반환 (content 추가)
+    return HttpResponse.json(apiResponse({
+      ...notice,
+      content: `<h2>${notice.title}</h2>
+<p>안녕하세요, MZC Learn 관리팀입니다.</p>
+<p>본 공지사항은 중요한 내용을 담고 있으니 반드시 확인해 주시기 바랍니다.</p>
+<h3>주요 내용</h3>
+<ul>
+  <li>시스템 업데이트 및 새로운 기능 안내</li>
+  <li>이용 정책 변경사항</li>
+  <li>학습 관련 유용한 팁</li>
+</ul>
+<p>자세한 내용은 아래를 참고해 주세요.</p>
+<p>감사합니다.</p>`,
+      attachments: [],
+      viewCount: Math.floor(Math.random() * 500) + 50,
+    }));
   }),
 
   // ========== Dashboard ==========
@@ -991,6 +1182,151 @@ export const handlers = [
       createdAt: new Date().toISOString(),
     };
     return HttpResponse.json(apiResponse(newPost), { status: 201 });
+  }),
+
+  // 커뮤니티 카테고리 목록
+  http.get('/api/community/categories', async () => {
+    await delay(20);
+    return HttpResponse.json(apiResponse([
+      { id: 1, name: '자유게시판', code: 'FREE', description: '자유롭게 이야기를 나눠보세요', postCount: 156 },
+      { id: 2, name: '질문과 답변', code: 'QNA', description: '학습 관련 질문을 올려주세요', postCount: 89 },
+      { id: 3, name: '스터디 모집', code: 'STUDY', description: '함께 공부할 스터디원을 모집합니다', postCount: 34 },
+      { id: 4, name: '취업/이직', code: 'CAREER', description: '취업 및 이직 관련 정보를 공유해요', postCount: 67 },
+      { id: 5, name: '후기 공유', code: 'REVIEW', description: '강의 및 학습 후기를 공유해주세요', postCount: 45 },
+    ]));
+  }),
+
+  // 내가 작성한 게시글
+  http.get('/api/community/posts/me', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '10', 10);
+
+    // 현재 사용자가 작성한 게시글만 필터링 (mock에서는 authorId: 14 사용)
+    const myPosts = mockCommunityPosts.filter(p => p.authorId === 14);
+    return HttpResponse.json(apiResponse(paginatedResponse(myPosts, page, size)));
+  }),
+
+  // 내가 댓글 단 게시글
+  http.get('/api/community/posts/commented', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '10', 10);
+
+    // mock 데이터: 일부 게시글에 댓글을 단 것으로 처리
+    const commentedPosts = mockCommunityPosts.slice(0, 5).map(post => ({
+      ...post,
+      myCommentCount: Math.floor(Math.random() * 3) + 1,
+      lastCommentedAt: '2026-01-28T14:30:00',
+    }));
+    return HttpResponse.json(apiResponse(paginatedResponse(commentedPosts, page, size)));
+  }),
+
+  // 인기 게시글
+  http.get('/api/community/posts/popular', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '10', 10);
+
+    // 좋아요 순으로 정렬
+    const popularPosts = [...mockCommunityPosts]
+      .sort((a, b) => b.likeCount - a.likeCount)
+      .slice(0, 20);
+    return HttpResponse.json(apiResponse(paginatedResponse(popularPosts, page, size)));
+  }),
+
+  // 게시글 좋아요
+  http.post('/api/community/posts/:id/like', async ({ params }) => {
+    await delay(20);
+    const postId = Number(params.id);
+    const post = mockCommunityPosts.find(p => p.id === postId);
+    if (!post) {
+      return HttpResponse.json(
+        errorResponse('게시글을 찾을 수 없습니다.', 'POST_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({
+      postId,
+      liked: true,
+      likeCount: post.likeCount + 1
+    }));
+  }),
+
+  // 게시글 좋아요 취소
+  http.delete('/api/community/posts/:id/like', async ({ params }) => {
+    await delay(20);
+    const postId = Number(params.id);
+    const post = mockCommunityPosts.find(p => p.id === postId);
+    if (!post) {
+      return HttpResponse.json(
+        errorResponse('게시글을 찾을 수 없습니다.', 'POST_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({
+      postId,
+      liked: false,
+      likeCount: Math.max(0, post.likeCount - 1)
+    }));
+  }),
+
+  // 게시글 댓글 목록
+  http.get('/api/community/posts/:id/comments', async ({ params }) => {
+    await delay(30);
+    const postId = Number(params.id);
+    return HttpResponse.json(apiResponse([
+      {
+        id: 1,
+        postId,
+        authorId: 15,
+        authorName: '김개발',
+        content: '좋은 정보 감사합니다! 많은 도움이 되었어요.',
+        likeCount: 5,
+        createdAt: '2026-01-28T10:30:00',
+        isEdited: false,
+      },
+      {
+        id: 2,
+        postId,
+        authorId: 16,
+        authorName: '이학습',
+        content: '저도 같은 고민이 있었는데, 이 글 보고 해결했습니다.',
+        likeCount: 3,
+        createdAt: '2026-01-28T11:15:00',
+        isEdited: false,
+      },
+      {
+        id: 3,
+        postId,
+        authorId: 14,
+        authorName: '정학습',
+        content: '댓글 감사합니다! 추가 질문 있으시면 편하게 남겨주세요.',
+        likeCount: 2,
+        createdAt: '2026-01-28T12:00:00',
+        isEdited: true,
+      },
+    ]));
+  }),
+
+  // 댓글 작성
+  http.post('/api/community/posts/:id/comments', async ({ params, request }) => {
+    await delay(30);
+    const postId = Number(params.id);
+    const body = await request.json() as { content: string };
+    return HttpResponse.json(apiResponse({
+      id: 100,
+      postId,
+      authorId: 14,
+      authorName: '정학습',
+      content: body.content,
+      likeCount: 0,
+      createdAt: new Date().toISOString(),
+      isEdited: false,
+    }), { status: 201 });
   }),
 
   // ========== Departments ==========
