@@ -3,3 +3,4 @@ export * from './courses';
 export * from './tenant';
 export * from './enrollments';
 export * from './dashboard';
+export * from './analytics';

@@ -23,11 +23,18 @@ import {
   mockWishlist,
   mockCart,
   mockNotifications,
-  mockTADashboard,
-  mockSADashboard,
   mockTUDashboard,
+  mockSADashboard,
   mockCODashboard,
+  mockTADashboardByPeriod,
 } from './data';
+import {
+  mockActivityLogs,
+  mockRecentActivities,
+  mockActivityStatsByDays,
+  searchActivityLogs,
+} from './data/analytics';
+import type { ActivityType } from '@/services/ta/analyticsService';
 
 // Helper to wrap response in ApiResponse format
 const apiResponse = <T>(data: T) => ({
@@ -218,9 +225,37 @@ export const handlers = [
     return HttpResponse.json(apiResponse(mockCertificates));
   }),
 
-  http.get('/api/users', async () => {
+  http.get('/api/users', async ({ request }) => {
     await delay(30);
-    return HttpResponse.json(apiResponse(paginatedResponse(mockUsers.users)));
+    const url = new URL(request.url);
+    const roleParam = url.searchParams.get('role');
+    const statusParam = url.searchParams.get('status');
+    const keywordParam = url.searchParams.get('keyword');
+    const page = Number(url.searchParams.get('page') || '0');
+    const size = Number(url.searchParams.get('size') || '10');
+
+    let filteredUsers = [...mockUsers.users];
+
+    // 역할 필터
+    if (roleParam) {
+      filteredUsers = filteredUsers.filter(user => user.roles.includes(roleParam));
+    }
+
+    // 상태 필터
+    if (statusParam) {
+      filteredUsers = filteredUsers.filter(user => user.status === statusParam);
+    }
+
+    // 키워드 검색 (이름, 이메일)
+    if (keywordParam) {
+      const keyword = keywordParam.toLowerCase();
+      filteredUsers = filteredUsers.filter(user =>
+        user.name.toLowerCase().includes(keyword) ||
+        user.email.toLowerCase().includes(keyword)
+      );
+    }
+
+    return HttpResponse.json(apiResponse(paginatedResponse(filteredUsers, page, size)));
   }),
 
   http.get('/api/users/:id', async ({ params }) => {
@@ -1763,14 +1798,23 @@ Server Components와 함께 사용하면 정말 편해요!`, author: { id: 36, n
 
   // ========== Dashboard ==========
   // TA Dashboard (TENANT_ADMIN)
-  http.get('/api/admin/dashboard/kpi', async () => {
+  http.get('/api/admin/dashboard/kpi', async ({ request }) => {
     await delay(50);
+    const url = new URL(request.url);
+    const periodParam = url.searchParams.get('period');
+    // 프론트엔드 period ('7d', '30d', 없음=all) → mock 데이터 키 매핑
+    const periodMap: Record<string, keyof typeof mockTADashboardByPeriod> = {
+      '7d': 'WEEK',
+      '30d': 'MONTH',
+    };
+    const periodKey = periodParam ? (periodMap[periodParam] || 'ALL') : 'ALL';
+    const dashboardData = mockTADashboardByPeriod[periodKey];
     // 새 구조 응답: userStats, programStats, enrollmentStats, dailyTrend
     return HttpResponse.json(apiResponse({
-      userStats: mockTADashboard.userStats,
-      programStats: mockTADashboard.programStats,
-      enrollmentStats: mockTADashboard.enrollmentStats,
-      dailyTrend: mockTADashboard.dailyTrend,
+      userStats: dashboardData.userStats,
+      programStats: dashboardData.programStats,
+      enrollmentStats: dashboardData.enrollmentStats,
+      dailyTrend: dashboardData.dailyTrend,
     }));
   }),
 
@@ -1798,28 +1842,227 @@ Server Components와 함께 사용하면 정말 편해요!`, author: { id: 36, n
   }),
 
   // ========== Analytics ==========
-  http.get('/api/admin/analytics/logs', async () => {
+  // 활동 로그 목록 조회
+  http.get('/api/admin/analytics/logs', async ({ request }) => {
     await delay(30);
-    return HttpResponse.json(apiResponse(paginatedResponse([])));
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '50', 10);
+    const type = url.searchParams.get('type') || undefined;
+
+    let filteredLogs = [...mockActivityLogs];
+    if (type) {
+      filteredLogs = filteredLogs.filter(log => log.activityType === type);
+    }
+
+    return HttpResponse.json(apiResponse(paginatedResponse(filteredLogs, page, size)));
   }),
 
-  http.get('/api/admin/analytics/stats', async () => {
+  // 활동 로그 검색
+  http.get('/api/admin/analytics/logs/search', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '50', 10);
+    const userId = url.searchParams.get('userId');
+    const type = url.searchParams.get('type') || undefined;
+    const startDate = url.searchParams.get('startDate') || undefined;
+    const endDate = url.searchParams.get('endDate') || undefined;
+    const keyword = url.searchParams.get('keyword') || undefined;
+
+    const filteredLogs = searchActivityLogs({
+      userId: userId ? parseInt(userId, 10) : undefined,
+      type: type as ActivityType | undefined,
+      startDate,
+      endDate,
+      keyword,
+    });
+
+    return HttpResponse.json(apiResponse(paginatedResponse(filteredLogs, page, size)));
+  }),
+
+  // 활동 통계 조회
+  http.get('/api/admin/analytics/stats', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const days = parseInt(url.searchParams.get('days') || '30', 10);
+
+    // 1, 7, 30일 기준 통계 반환
+    const stats = mockActivityStatsByDays[days] || mockActivityStatsByDays[30];
+    return HttpResponse.json(apiResponse(stats));
+  }),
+
+  // 최근 활동 조회
+  http.get('/api/admin/analytics/recent', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse(mockRecentActivities));
+  }),
+
+  // 특정 사용자 활동 로그 조회
+  http.get('/api/admin/analytics/logs/users/:userId', async ({ params, request }) => {
+    await delay(30);
+    const userId = Number(params.userId);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '20', 10);
+
+    const userLogs = mockActivityLogs.filter(log => log.userId === userId);
+    return HttpResponse.json(apiResponse(paginatedResponse(userLogs, page, size)));
+  }),
+
+  // 활동 유형 목록 조회
+  http.get('/api/admin/analytics/types', async () => {
+    await delay(30);
+    const activityTypes = [
+      { type: 'LOGIN', description: '로그인' },
+      { type: 'LOGOUT', description: '로그아웃' },
+      { type: 'LOGIN_FAILED', description: '로그인 실패' },
+      { type: 'PASSWORD_CHANGE', description: '비밀번호 변경' },
+      { type: 'USER_CREATE', description: '사용자 생성' },
+      { type: 'USER_UPDATE', description: '사용자 수정' },
+      { type: 'USER_DELETE', description: '사용자 삭제' },
+      { type: 'ROLE_CHANGE', description: '역할 변경' },
+      { type: 'COURSE_VIEW', description: '강좌 조회' },
+      { type: 'COURSE_CREATE', description: '강좌 생성' },
+      { type: 'COURSE_UPDATE', description: '강좌 수정' },
+      { type: 'COURSE_DELETE', description: '강좌 삭제' },
+      { type: 'ENROLLMENT_CREATE', description: '수강 신청' },
+      { type: 'ENROLLMENT_COMPLETE', description: '수강 완료' },
+      { type: 'ENROLLMENT_DROP', description: '수강 취소' },
+      { type: 'CONTENT_VIEW', description: '콘텐츠 조회' },
+      { type: 'CONTENT_COMPLETE', description: '콘텐츠 완료' },
+    ];
+    return HttpResponse.json(apiResponse(activityTypes));
+  }),
+
+  // 활동 로그 내보내기 (CSV)
+  http.get('/api/admin/analytics/logs/export', async ({ request }) => {
+    await delay(100);
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('userId');
+    const type = url.searchParams.get('type') || undefined;
+    const startDate = url.searchParams.get('startDate') || undefined;
+    const endDate = url.searchParams.get('endDate') || undefined;
+
+    const filteredLogs = searchActivityLogs({
+      userId: userId ? parseInt(userId, 10) : undefined,
+      type: type as ActivityType | undefined,
+      startDate,
+      endDate,
+    });
+
+    // CSV 생성
+    const headers = ['ID', '사용자', '이메일', '활동 유형', '설명', 'IP 주소', '생성일시'];
+    const rows = filteredLogs.map(log => [
+      log.id,
+      log.userName || '',
+      log.userEmail || '',
+      log.activityTypeLabel,
+      log.description,
+      log.ipAddress || '',
+      log.createdAt,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+
+    return new HttpResponse(csvContent, {
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename="activity_logs_${Date.now()}.csv"`,
+      },
+    });
+  }),
+
+  // 리포트 유형 목록
+  http.get('/api/admin/analytics/reports/types', async () => {
+    await delay(30);
+    const reportTypes = [
+      { type: 'USERS', name: '사용자 현황', description: '등록된 사용자 목록 및 상태' },
+      { type: 'COURSES', name: '강좌 현황', description: '강좌 목록 및 수강 통계' },
+      { type: 'LEARNING', name: '학습 진도', description: '사용자별 학습 진행 현황' },
+      { type: 'COMPLETION', name: '수료 현황', description: '강좌별 수료자 통계' },
+      { type: 'ENGAGEMENT', name: '참여도 분석', description: '사용자 활동 및 참여 지표' },
+    ];
+    return HttpResponse.json(apiResponse(reportTypes));
+  }),
+
+  // 리포트 내보내기
+  http.get('/api/admin/analytics/reports/export', async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const reportType = url.searchParams.get('reportType') || 'USERS';
+    const format = url.searchParams.get('format') || 'CSV';
+
+    let content: string;
+    let mimeType: string;
+    let extension: string;
+
+    if (format === 'CSV') {
+      mimeType = 'text/csv';
+      extension = 'csv';
+      // CSV 데이터 생성
+      if (reportType === 'USERS') {
+        content = 'ID,이름,이메일,역할,상태,가입일\n1,김관리,admin@mzcacademy.com,TENANT_ADMIN,ACTIVE,2024-01-15\n2,이운영,operator@mzcacademy.com,TENANT_OPERATOR,ACTIVE,2024-02-01';
+      } else if (reportType === 'COURSES') {
+        content = 'ID,강좌명,카테고리,수강생,완료율\n1,AWS Solutions Architect,클라우드,45,78%\n2,Kubernetes 기초,DevOps,32,65%';
+      } else if (reportType === 'LEARNING') {
+        content = 'ID,사용자,강좌,진도율,최근학습일\n1,박수강,AWS Solutions Architect,85%,2025-01-28\n2,정학습,Kubernetes 기초,60%,2025-01-27';
+      } else if (reportType === 'COMPLETION') {
+        content = 'ID,사용자,강좌,수료일,점수\n1,박수강,AWS Solutions Architect,2025-01-25,92\n2,최개발,Kubernetes 기초,2025-01-20,88';
+      } else {
+        content = 'ID,사용자,총수강,완료,진행중,평균진도율\n1,박수강,5,3,2,75%\n2,정학습,4,2,2,60%';
+      }
+    } else if (format === 'XLSX') {
+      mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      extension = 'xlsx';
+      // 간단한 XLSX 데이터 (실제로는 라이브러리 필요)
+      content = 'XLSX_MOCK_DATA';
+    } else {
+      mimeType = 'application/pdf';
+      extension = 'pdf';
+      content = 'PDF_MOCK_DATA';
+    }
+
+    return new HttpResponse(content, {
+      headers: {
+        'Content-Type': mimeType,
+        'Content-Disposition': `attachment; filename="${reportType.toLowerCase()}_report.${extension}"`,
+      },
+    });
+  }),
+
+  // 내보내기 이력 조회
+  http.get('/api/admin/analytics/reports/history', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+
+    const history = [
+      { id: 1, reportType: '사용자 현황', format: 'XLSX', period: 'MONTH', status: 'COMPLETED', createdAt: '2025-01-28 14:30:00', fileSize: '24KB' },
+      { id: 2, reportType: '학습 진도', format: 'CSV', period: 'WEEK', status: 'COMPLETED', createdAt: '2025-01-27 10:15:00', fileSize: '12KB' },
+      { id: 3, reportType: '수료 현황', format: 'PDF', period: 'MONTH', status: 'COMPLETED', createdAt: '2025-01-26 16:45:00', fileSize: '156KB' },
+      { id: 4, reportType: '참여도 분석', format: 'XLSX', period: 'QUARTER', status: 'COMPLETED', createdAt: '2025-01-25 09:20:00', fileSize: '48KB' },
+      { id: 5, reportType: '강좌 현황', format: 'CSV', period: 'ALL', status: 'COMPLETED', createdAt: '2025-01-24 11:00:00', fileSize: '8KB' },
+    ].slice(0, limit);
+
+    return HttpResponse.json(apiResponse(history));
+  }),
+
+  // 내보내기 통계
+  http.get('/api/admin/analytics/reports/stats', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse({
-      totalViews: 12345,
-      uniqueUsers: 567,
-      averageSessionTime: 1234,
+      monthlyCount: 23,
+      totalSize: '1.2MB',
+      mostPopular: '사용자 현황',
     }));
   }),
 
-  http.get('/api/admin/analytics/recent', async () => {
+  http.get('/api/sa/analytics/logs', async ({ request }) => {
     await delay(30);
-    return HttpResponse.json(apiResponse([]));
-  }),
-
-  http.get('/api/sa/analytics/logs', async () => {
-    await delay(30);
-    return HttpResponse.json(apiResponse(paginatedResponse([])));
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '50', 10);
+    return HttpResponse.json(apiResponse(paginatedResponse(mockActivityLogs, page, size)));
   }),
 
   // ========== Wishlist & Cart ==========
@@ -2634,30 +2877,80 @@ Server Components와 함께 사용하면 정말 편해요!`, author: { id: 36, n
   // ========== Departments ==========
   http.get('/api/departments', async () => {
     await delay(30);
-    return HttpResponse.json(apiResponse([
-      { id: 1, name: '개발팀', code: 'DEV', memberCount: 15 },
-      { id: 2, name: '마케팅팀', code: 'MKT', memberCount: 8 },
-      { id: 3, name: '영업팀', code: 'SALES', memberCount: 12 },
-      { id: 4, name: '인사팀', code: 'HR', memberCount: 5 },
-    ]));
+    const departments = [
+      { id: 1, name: '경영지원팀', code: 'MGT', description: '경영 지원 업무', parentId: null, parentName: null, managerId: 10, managerName: '김테넌트', sortOrder: 1, isActive: true, memberCount: 3, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+      { id: 2, name: '교육운영팀', code: 'EDU_OPS', description: '교육 과정 운영', parentId: null, parentName: null, managerId: 11, managerName: '이운영', sortOrder: 2, isActive: true, memberCount: 4, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+      { id: 3, name: '교육개발팀', code: 'EDU_DEV', description: '교육 콘텐츠 개발', parentId: null, parentName: null, managerId: 12, managerName: '박강사', sortOrder: 3, isActive: true, memberCount: 5, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+      { id: 4, name: '개발팀', code: 'DEV', description: '시스템 개발', parentId: null, parentName: null, managerId: 17, managerName: '박코딩', sortOrder: 4, isActive: true, memberCount: 6, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+      { id: 5, name: '마케팅팀', code: 'MKT', description: '마케팅 및 홍보', parentId: null, parentName: null, managerId: 39, managerName: '남마케터', sortOrder: 5, isActive: true, memberCount: 3, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+    ];
+    return HttpResponse.json(apiResponse(departments));
   }),
 
   http.get('/api/departments/tree', async () => {
     await delay(30);
-    return HttpResponse.json(apiResponse([
+    const departmentTree = [
       {
-        id: 1,
-        name: '개발팀',
-        code: 'DEV',
+        id: 1, name: '경영지원팀', code: 'MGT', description: '경영 지원 업무', parentId: null, parentName: null, managerId: 10, managerName: '김테넌트', sortOrder: 1, isActive: true, memberCount: 3, createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00',
+        children: [],
+      },
+      {
+        id: 2, name: '교육운영팀', code: 'EDU_OPS', description: '교육 과정 운영', parentId: null, parentName: null, managerId: 11, managerName: '이운영', sortOrder: 2, isActive: true, memberCount: 4, createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00',
+        children: [],
+      },
+      {
+        id: 3, name: '교육개발팀', code: 'EDU_DEV', description: '교육 콘텐츠 개발', parentId: null, parentName: null, managerId: 12, managerName: '박강사', sortOrder: 3, isActive: true, memberCount: 5, createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00',
+        children: [],
+      },
+      {
+        id: 4, name: '개발팀', code: 'DEV', description: '시스템 개발', parentId: null, parentName: null, managerId: 17, managerName: '박코딩', sortOrder: 4, isActive: true, memberCount: 6, createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00',
         children: [
-          { id: 5, name: '프론트엔드팀', code: 'FE', children: [] },
-          { id: 6, name: '백엔드팀', code: 'BE', children: [] },
+          { id: 6, name: '프론트엔드팀', code: 'FE', description: '프론트엔드 개발', parentId: 4, parentName: '개발팀', managerId: null, managerName: null, sortOrder: 1, isActive: true, memberCount: 3, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+          { id: 7, name: '백엔드팀', code: 'BE', description: '백엔드 개발', parentId: 4, parentName: '개발팀', managerId: null, managerName: null, sortOrder: 2, isActive: true, memberCount: 3, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
         ],
       },
-      { id: 2, name: '마케팅팀', code: 'MKT', children: [] },
-      { id: 3, name: '영업팀', code: 'SALES', children: [] },
-      { id: 4, name: '인사팀', code: 'HR', children: [] },
-    ]));
+      {
+        id: 5, name: '마케팅팀', code: 'MKT', description: '마케팅 및 홍보', parentId: null, parentName: null, managerId: 39, managerName: '남마케터', sortOrder: 5, isActive: true, memberCount: 3, createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00',
+        children: [],
+      },
+    ];
+    return HttpResponse.json(apiResponse(departmentTree));
+  }),
+
+  // 부서 멤버 조회
+  http.get('/api/departments/:id/members', async ({ params }) => {
+    await delay(30);
+    const departmentId = Number(params.id);
+    // mockUserDetails에서 해당 부서 사용자 필터링
+    const members = Object.values(mockUserDetails)
+      .filter(user => user.departmentId === departmentId && user.tenantId === 1)
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: null,
+        position: user.position,
+        role: user.currentRole,
+      }));
+    return HttpResponse.json(apiResponse(members));
+  }),
+
+  // 부서에 배정 가능한 멤버 조회
+  http.get('/api/departments/:id/available-members', async ({ params }) => {
+    await delay(30);
+    const departmentId = Number(params.id);
+    // mockUserDetails에서 다른 부서 또는 부서 없는 사용자 필터링
+    const availableMembers = Object.values(mockUserDetails)
+      .filter(user => user.departmentId !== departmentId && user.tenantId === 1)
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: null,
+        position: user.position,
+        role: user.currentRole,
+      }));
+    return HttpResponse.json(apiResponse(availableMembers));
   }),
 
   // ========== Tenants (SA) ==========
