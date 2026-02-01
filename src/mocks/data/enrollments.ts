@@ -1,4 +1,71 @@
 // Mock enrollment data
+
+// ========== 찜 목록 ==========
+// WishlistItemResponse 타입에 맞게 플랫 구조로 정의
+export const mockWishlist = [
+  {
+    id: 1,
+    courseTimeId: 2,
+    courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 1기',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=400&h=300&fit=crop',
+    level: 'INTERMEDIATE',
+    estimatedHours: 24,
+    isFree: false,
+    price: '129000',
+    addedAt: '2026-01-25T10:00:00',
+  },
+  {
+    id: 2,
+    courseTimeId: 3,
+    courseTimeTitle: 'AWS 클라우드 입문 - 2024년 2기',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&h=300&fit=crop',
+    level: 'BEGINNER',
+    estimatedHours: 16,
+    isFree: false,
+    price: '149000',
+    addedAt: '2026-01-20T14:30:00',
+  },
+  {
+    id: 3,
+    courseTimeId: 4,
+    courseTimeTitle: 'Python 데이터 분석 - 무료 체험반',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=400&h=300&fit=crop',
+    level: 'INTERMEDIATE',
+    estimatedHours: 20,
+    isFree: true,
+    price: null,
+    addedAt: '2026-01-18T09:15:00',
+  },
+];
+
+// ========== 장바구니 ==========
+// CartItemResponse 타입에 맞게 플랫 구조로 정의 (cartItemId 사용)
+export const mockCart = [
+  {
+    cartItemId: 1,
+    courseTimeId: 2,
+    courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 1기',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=400&h=300&fit=crop',
+    level: 'INTERMEDIATE',
+    estimatedHours: 24,
+    isFree: false,
+    price: '129000',
+    addedAt: '2026-01-28T11:00:00',
+  },
+  {
+    cartItemId: 2,
+    courseTimeId: 3,
+    courseTimeTitle: 'AWS 클라우드 입문 - 2024년 2기',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&h=300&fit=crop',
+    level: 'BEGINNER',
+    estimatedHours: 16,
+    isFree: false,
+    price: '149000',
+    addedAt: '2026-01-27T16:30:00',
+  },
+];
+
+// ========== 수강 내역 ==========
 export const mockEnrollments = [
   {
     id: 1,
@@ -6,7 +73,7 @@ export const mockEnrollments = [
     courseTimeId: 1,
     courseName: 'React 기초부터 실전까지',
     courseDescription: 'React의 기초 개념부터 실전 프로젝트까지 학습합니다.',
-    thumbnailUrl: 'https://picsum.photos/seed/react/400/300',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=300&fit=crop',
     timeName: '2024년 1기',
     status: 'IN_PROGRESS',
     progress: 65,
@@ -23,7 +90,7 @@ export const mockEnrollments = [
     courseTimeId: 2,
     courseName: 'TypeScript 마스터 클래스',
     courseDescription: 'TypeScript를 활용한 타입 안전한 개발 방법을 학습합니다.',
-    thumbnailUrl: 'https://picsum.photos/seed/typescript/400/300',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=400&h=300&fit=crop',
     timeName: '2024년 1기',
     status: 'IN_PROGRESS',
     progress: 30,
@@ -40,7 +107,7 @@ export const mockEnrollments = [
     courseTimeId: 3,
     courseName: 'AWS 클라우드 입문',
     courseDescription: 'AWS 클라우드 서비스의 기초를 학습합니다.',
-    thumbnailUrl: 'https://picsum.photos/seed/aws/400/300',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&h=300&fit=crop',
     timeName: '2024년 2기',
     status: 'COMPLETED',
     progress: 100,

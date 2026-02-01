@@ -17,6 +17,8 @@ import {
   mockEnrollments,
   mockCertificates,
   mockCurriculum,
+  mockWishlist,
+  mockCart,
   mockTADashboard,
   mockSADashboard,
   mockTUDashboard,
@@ -637,24 +639,110 @@ export const handlers = [
   }),
 
   // ========== Wishlist & Cart ==========
-  http.get('/api/wishlist', async () => {
+  // 찜 목록 조회 (페이지네이션)
+  http.get('/api/wishlist', async ({ request }) => {
     await delay(30);
-    return HttpResponse.json(apiResponse([]));
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '20', 10);
+    return HttpResponse.json(apiResponse(paginatedResponse(mockWishlist, page, size)));
   }),
 
   http.get('/api/wishlist/count', async () => {
     await delay(10);
-    return HttpResponse.json(apiResponse({ count: 0 }));
+    return HttpResponse.json(apiResponse({ count: mockWishlist.length }));
   }),
 
+  http.post('/api/wishlist', async ({ request }) => {
+    await delay(30);
+    const body = await request.json() as { courseTimeId: number };
+    // WishlistItemResponse 형식으로 반환
+    const newItem = {
+      id: mockWishlist.length + 1,
+      courseTimeId: body.courseTimeId,
+      courseTimeTitle: '새로 추가된 강의',
+      thumbnailUrl: null,
+      level: null,
+      estimatedHours: null,
+      isFree: false,
+      price: null,
+      addedAt: new Date().toISOString(),
+    };
+    return HttpResponse.json(apiResponse(newItem), { status: 201 });
+  }),
+
+  // /api/wishlist/course-times/:courseTimeId 경로로 삭제
+  http.delete('/api/wishlist/course-times/:courseTimeId', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ message: '찜 목록에서 삭제되었습니다.' }));
+  }),
+
+  http.get('/api/wishlist/course-times/:courseTimeId/check', async ({ params }) => {
+    await delay(10);
+    const courseTimeId = Number(params.courseTimeId);
+    const isWishlisted = mockWishlist.some(w => w.courseTimeId === courseTimeId);
+    return HttpResponse.json(apiResponse(isWishlisted));
+  }),
+
+  // 찜 여부 일괄 확인
+  http.post('/api/wishlist/check', async ({ request }) => {
+    await delay(20);
+    const body = await request.json() as { courseTimeIds: number[] };
+    const wishlistStatus: Record<number, boolean> = {};
+    body.courseTimeIds.forEach(id => {
+      wishlistStatus[id] = mockWishlist.some(w => w.courseTimeId === id);
+    });
+    return HttpResponse.json(apiResponse({ wishlistStatus }));
+  }),
+
+  // 장바구니 조회 (배열 직접 반환)
   http.get('/api/cart', async () => {
     await delay(30);
-    return HttpResponse.json(apiResponse([]));
+    return HttpResponse.json(apiResponse(mockCart));
   }),
 
   http.get('/api/cart/count', async () => {
     await delay(10);
-    return HttpResponse.json(apiResponse({ count: 0 }));
+    return HttpResponse.json(apiResponse({ count: mockCart.length }));
+  }),
+
+  // /api/cart/items 경로로 추가
+  http.post('/api/cart/items', async ({ request }) => {
+    await delay(30);
+    const body = await request.json() as { courseTimeId: number };
+    // CartItemResponse 형식으로 반환
+    const newItem = {
+      cartItemId: mockCart.length + 1,
+      courseTimeId: body.courseTimeId,
+      courseTimeTitle: '새로 추가된 강의',
+      thumbnailUrl: null,
+      level: null,
+      estimatedHours: null,
+      isFree: false,
+      price: null,
+      addedAt: new Date().toISOString(),
+    };
+    return HttpResponse.json(apiResponse(newItem), { status: 201 });
+  }),
+
+  // /api/cart/items/:courseTimeId 경로로 삭제
+  http.delete('/api/cart/items/:courseTimeId', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ message: '장바구니에서 삭제되었습니다.' }));
+  }),
+
+  // 장바구니 일괄 삭제
+  http.delete('/api/cart/items', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ message: '선택한 항목이 삭제되었습니다.' }));
+  }),
+
+  // 장바구니 여부 확인
+  http.get('/api/cart/items/:courseTimeId/check', async ({ params }) => {
+    await delay(10);
+    const courseTimeId = Number(params.courseTimeId);
+    const isInCart = mockCart.some(c => c.courseTimeId === courseTimeId);
+    return HttpResponse.json(apiResponse(isInCart));
   }),
 
   // ========== Community (테넌트별) ==========
