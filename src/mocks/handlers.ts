@@ -1371,7 +1371,7 @@ export const handlers = [
           content: '좋은 정보 감사합니다! React 처음 배우는데 정말 도움이 많이 됐어요.',
           likeCount: 8,
           createdAt: '2026-01-20T14:30:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 2,
@@ -1380,7 +1380,7 @@ export const handlers = [
           content: 'useEffect 의존성 배열 부분 정말 공감합니다. 저도 처음에 무한 루프 때문에 고생했어요.',
           likeCount: 5,
           createdAt: '2026-01-20T15:20:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 3,
@@ -1389,7 +1389,7 @@ export const handlers = [
           content: '댓글 감사합니다! 추가로 궁금한 점 있으시면 편하게 질문해주세요 :)',
           likeCount: 3,
           createdAt: '2026-01-20T16:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
       ],
       // Post 2: TypeScript 제네릭 관련 질문입니다 (정학습 작성)
@@ -1401,7 +1401,7 @@ export const handlers = [
           content: 'extends 키워드를 사용해서 타입을 제한하시면 됩니다. 예를 들어 function example<T extends string | number>(arg: T) 이런 식으로요.',
           likeCount: 12,
           createdAt: '2026-01-19T15:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 5,
@@ -1410,7 +1410,7 @@ export const handlers = [
           content: '저도 비슷한 문제로 고민했었는데, 이학습님 답변이 도움이 되네요!',
           likeCount: 3,
           createdAt: '2026-01-19T16:30:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 6,
@@ -1419,7 +1419,7 @@ export const handlers = [
           content: '이학습님 답변 감사합니다! 덕분에 해결했습니다.',
           likeCount: 2,
           createdAt: '2026-01-19T17:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
       ],
       // Post 3: AWS 스터디 그룹 모집합니다 (정학습 작성)
@@ -1431,7 +1431,7 @@ export const handlers = [
           content: '저도 참여하고 싶습니다! AWS 자격증 준비 중인데 같이 공부하면 좋겠어요.',
           likeCount: 4,
           createdAt: '2026-01-18T10:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 8,
@@ -1440,7 +1440,7 @@ export const handlers = [
           content: '스터디 일정이 어떻게 되나요? 평일 저녁이면 참여 가능합니다.',
           likeCount: 2,
           createdAt: '2026-01-18T11:30:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 9,
@@ -1449,7 +1449,7 @@ export const handlers = [
           content: '신청 감사합니다! 평일 저녁 8시로 진행 예정이에요. 곧 오픈채팅방 링크 공유드릴게요.',
           likeCount: 3,
           createdAt: '2026-01-18T12:00:00',
-          updatedAt: '2026-01-28T12:00:00',
+          isEdited: false,
         },
       ],
       // Post 4: React 기초 과정 수강 후기 (정학습 작성)
@@ -1461,7 +1461,7 @@ export const handlers = [
           content: '저도 이 과정 듣고 있는데 정말 좋아요! 후기 공감합니다.',
           likeCount: 6,
           createdAt: '2026-01-15T17:30:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 11,
@@ -1470,7 +1470,7 @@ export const handlers = [
           content: '심화 내용은 React 고급 과정에서 다룬다고 하더라고요. 추천드려요!',
           likeCount: 4,
           createdAt: '2026-01-15T18:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
       ],
       // Post 5: 프론트엔드 개발자 면접 준비 팁 (정학습 작성)
@@ -1482,7 +1482,7 @@ export const handlers = [
           content: '면접 준비에 큰 도움이 되었습니다! 특히 기술 면접 부분 정리가 좋네요.',
           likeCount: 15,
           createdAt: '2026-01-10T14:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 13,
@@ -1491,7 +1491,7 @@ export const handlers = [
           content: '과제 전형 팁도 공유해주실 수 있나요?',
           likeCount: 7,
           createdAt: '2026-01-10T15:30:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 14,
@@ -1500,7 +1500,7 @@ export const handlers = [
           content: '과제 전형 팁은 따로 글 작성해볼게요! 관심 가져주셔서 감사합니다.',
           likeCount: 5,
           createdAt: '2026-01-10T16:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
       ],
       // Post 6: Next.js 13 App Router 사용 후기 (김개발 작성)
@@ -1512,7 +1512,7 @@ export const handlers = [
           content: '저도 App Router 사용 중인데, 서버 컴포넌트 개념이 처음엔 어렵더라고요.',
           likeCount: 4,
           createdAt: '2026-01-25T10:30:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 16,
@@ -1521,7 +1521,7 @@ export const handlers = [
           content: 'use client 지시어 사용할 때 팁이 있을까요?',
           likeCount: 2,
           createdAt: '2026-01-25T11:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
       ],
       // Post 7: Zustand vs Redux 질문 (이학습 작성)
@@ -1533,7 +1533,7 @@ export const handlers = [
           content: '프로젝트 규모가 작으면 Zustand, 크고 복잡하면 Redux Toolkit 추천드려요!',
           likeCount: 18,
           createdAt: '2026-01-24T15:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 18,
@@ -1542,7 +1542,7 @@ export const handlers = [
           content: '저희 팀은 Zustand로 마이그레이션했는데 코드량이 확 줄었어요.',
           likeCount: 10,
           createdAt: '2026-01-24T16:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
       ],
       // Post 8: TypeScript 스터디 모집 (박코딩 작성)
@@ -1554,7 +1554,7 @@ export const handlers = [
           content: '참여 희망합니다! TypeScript 고급 패턴 같이 공부하고 싶어요.',
           likeCount: 3,
           createdAt: '2026-01-23T11:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
         {
           id: 20,
@@ -1563,7 +1563,7 @@ export const handlers = [
           content: '아직 자리 있나요? 저도 신청하고 싶습니다.',
           likeCount: 2,
           createdAt: '2026-01-23T13:00:00',
-          updatedAt: '2026-01-28T10:00:00',
+          isEdited: false,
         },
       ],
     };
@@ -1576,7 +1576,7 @@ export const handlers = [
         content: '좋은 글 감사합니다!',
         likeCount: 2,
         createdAt: '2026-01-28T10:00:00',
-        updatedAt: '2026-01-28T10:00:00',
+        isEdited: false,
       },
     ];
 
@@ -1603,7 +1603,7 @@ export const handlers = [
       content: body.content,
       likeCount: 0,
       createdAt: new Date().toISOString(),
-      updatedAt: '2026-01-28T10:00:00',
+      isEdited: false,
     }), { status: 201 });
   }),
 
