@@ -145,7 +145,7 @@ export function DomainSettingsPage() {
 
                         <div className="flex items-center gap-2 pt-2">
                           <a
-                            href={`http://localhost:3000/${domain.type === 'CUSTOM' ? domain.domain : domain.subdomain}/tu/b2c?from_sa=true`}
+                            href={`https://mzc-lp-frontend.vercel.app/${domain.type === 'CUSTOM' ? domain.domain : domain.subdomain}/tu/b2c?from_sa=true`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 text-sm text-brand-primary hover:underline font-medium"

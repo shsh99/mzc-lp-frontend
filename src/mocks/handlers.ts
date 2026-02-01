@@ -11,6 +11,9 @@ import {
   mockCategories,
   mockCommunityPosts,
   getCommunityPostsByTenant,
+  mockCourseReviews,
+  getCourseReviewsByTenant,
+  getCourseReviewsByCourse,
   mockTenantSettings,
   mockBanners,
   mockTenantNotices,
@@ -1605,6 +1608,122 @@ export const handlers = [
       createdAt: new Date().toISOString(),
       isEdited: false,
     }), { status: 201 });
+  }),
+
+  // ========== Course Reviews (수강평) ==========
+  http.get('/api/reviews', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const courseId = url.searchParams.get('courseId');
+
+    // 헤더에서 tenantId 추출
+    const authHeader = request.headers.get('Authorization');
+    const tokenMatch = authHeader?.match(/mock-access-token-(\d+)-/);
+    let tenantId: number | null = null;
+    if (tokenMatch) {
+      const userId = Number.parseInt(tokenMatch[1], 10);
+      const user = mockUserDetails[userId];
+      tenantId = user?.tenantId ?? null;
+    }
+
+    let reviews = getCourseReviewsByTenant(tenantId);
+    if (courseId) {
+      reviews = reviews.filter(r => r.courseId === Number(courseId));
+    }
+    return HttpResponse.json(apiResponse(paginatedResponse(reviews)));
+  }),
+
+  http.get('/api/reviews/:id', async ({ params }) => {
+    await delay(30);
+    const review = mockCourseReviews.find(r => r.id === Number(params.id));
+    if (!review) {
+      return HttpResponse.json(
+        errorResponse('수강평을 찾을 수 없습니다.', 'REVIEW_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse(review));
+  }),
+
+  http.get('/api/courses/:courseId/reviews', async ({ params }) => {
+    await delay(30);
+    const courseId = Number(params.courseId);
+    const reviews = getCourseReviewsByCourse(courseId);
+    return HttpResponse.json(apiResponse(paginatedResponse(reviews)));
+  }),
+
+  http.post('/api/reviews', async ({ request }) => {
+    await delay(50);
+    const body = await request.json() as {
+      courseId: number;
+      courseTimeId: number;
+      rating: number;
+      title: string;
+      content: string;
+    };
+    const newReview = {
+      id: mockCourseReviews.length + 1,
+      tenantId: 1,
+      courseId: body.courseId,
+      courseTimeId: body.courseTimeId,
+      courseTitle: 'React 기초부터 실전까지',
+      userId: 14,
+      userName: '정학습',
+      userProfileImage: 'https://api.dicebear.com/7.x/initials/svg?seed=정학습',
+      rating: body.rating,
+      title: body.title,
+      content: body.content,
+      helpfulCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return HttpResponse.json(apiResponse(newReview), { status: 201 });
+  }),
+
+  http.put('/api/reviews/:id', async ({ params, request }) => {
+    await delay(50);
+    const reviewId = Number(params.id);
+    const body = await request.json() as { rating?: number; title?: string; content?: string };
+    const review = mockCourseReviews.find(r => r.id === reviewId);
+    if (!review) {
+      return HttpResponse.json(
+        errorResponse('수강평을 찾을 수 없습니다.', 'REVIEW_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    const updatedReview = {
+      ...review,
+      ...body,
+      updatedAt: new Date().toISOString(),
+    };
+    return HttpResponse.json(apiResponse(updatedReview));
+  }),
+
+  http.delete('/api/reviews/:id', async ({ params }) => {
+    await delay(50);
+    const reviewId = Number(params.id);
+    const review = mockCourseReviews.find(r => r.id === reviewId);
+    if (!review) {
+      return HttpResponse.json(
+        errorResponse('수강평을 찾을 수 없습니다.', 'REVIEW_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({ message: '수강평이 삭제되었습니다.' }));
+  }),
+
+  // 수강평 도움됨
+  http.post('/api/reviews/:id/helpful', async ({ params }) => {
+    await delay(30);
+    const reviewId = Number(params.id);
+    const review = mockCourseReviews.find(r => r.id === reviewId);
+    if (!review) {
+      return HttpResponse.json(
+        errorResponse('수강평을 찾을 수 없습니다.', 'REVIEW_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(apiResponse({ helpful: true, helpfulCount: review.helpfulCount + 1 }));
   }),
 
   // ========== Departments ==========
