@@ -631,6 +631,223 @@ export const handlers = [
     }));
   }),
 
+  // ========== Course Reviews ==========
+  // 강의별 수강평 데이터
+  // courseTimeId별 리뷰 데이터
+  // 리뷰 통계 (stats 먼저 - 정적 경로)
+  http.get('/api/times/:timeId/reviews/stats', async ({ params }) => {
+    await delay(30);
+    const timeId = Number(params.timeId);
+
+    // 강의별 통계 데이터 (실제 리뷰 개수와 일치)
+    // 1: 6개 리뷰 (5,5,5,4,5,4) 평균 4.7
+    // 2: 5개 리뷰 (5,4,4,5,3) 평균 4.2
+    // 3: 6개 리뷰 (5,5,4,4,5,4) 평균 4.5
+    // 4: 4개 리뷰 (4,4,5,3) 평균 4.0
+    // 5: 5개 리뷰 (5,5,5,4,5) 평균 4.8
+    const statsMap: Record<number, { averageRating: number; totalReviews: number; ratingDistribution: Record<number, number> }> = {
+      // React 기초부터 실전까지 - 2024년 1기
+      1: {
+        averageRating: 4.7,
+        totalReviews: 6,
+        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 2, 5: 4 },
+      },
+      // TypeScript 마스터 클래스 - 2024년 1기
+      2: {
+        averageRating: 4.2,
+        totalReviews: 5,
+        ratingDistribution: { 1: 0, 2: 0, 3: 1, 4: 2, 5: 2 },
+      },
+      // AWS 클라우드 입문 - 2024년 2기
+      3: {
+        averageRating: 4.5,
+        totalReviews: 6,
+        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 3, 5: 3 },
+      },
+      // Python 데이터 분석 - 무료 체험반
+      4: {
+        averageRating: 4.0,
+        totalReviews: 4,
+        ratingDistribution: { 1: 0, 2: 0, 3: 1, 4: 2, 5: 1 },
+      },
+      // Next.js 실전 프로젝트
+      5: {
+        averageRating: 4.8,
+        totalReviews: 5,
+        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 1, 5: 4 },
+      },
+    };
+
+    const stats = statsMap[timeId] || {
+      averageRating: 4.3,
+      totalReviews: 3,
+      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 2, 5: 1 },
+    };
+
+    return HttpResponse.json(apiResponse(stats));
+  }),
+
+  // 내 리뷰 조회 (my 먼저 - 정적 경로)
+  http.get('/api/times/:timeId/reviews/my', async ({ params }) => {
+    await delay(30);
+    const timeId = Number(params.timeId);
+
+    // timeId 3 (AWS 클라우드 입문)에서만 사용자가 리뷰를 작성한 것으로 설정
+    if (timeId === 3) {
+      return HttpResponse.json(apiResponse({
+        reviewId: 999,
+        courseTimeId: 3,
+        userId: 14,
+        userName: '정학습',
+        userProfileImageUrl: null,
+        rating: 5,
+        content: 'AWS 기초 개념을 탄탄하게 잡을 수 있었습니다. 실습 환경도 잘 구성되어 있어서 따라하기 쉬웠어요. 덕분에 자격증 준비도 수월하게 할 수 있을 것 같습니다!',
+        completionRate: 100,
+        createdAt: '2026-01-25T16:30:00',
+        updatedAt: '2026-01-25T16:30:00',
+        isMyReview: true,
+      }));
+    }
+
+    return HttpResponse.json(apiResponse(null));
+  }),
+
+  // 리뷰 목록 조회
+  http.get('/api/times/:timeId/reviews', async ({ params, request }) => {
+    await delay(50);
+    const timeId = Number(params.timeId);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+
+    // 강의별 리뷰 데이터
+    const reviewsMap: Record<number, Array<{
+      reviewId: number;
+      courseTimeId: number;
+      userId: number;
+      userName: string;
+      userProfileImageUrl: string | null;
+      rating: number;
+      content: string;
+      completionRate: number;
+      createdAt: string;
+      updatedAt: string;
+      isMyReview: boolean;
+    }>> = {
+      // React 기초부터 실전까지 - 2024년 1기
+      1: [
+        { reviewId: 101, courseTimeId: 1, userId: 15, userName: '김개발', userProfileImageUrl: null, rating: 5, content: '정말 체계적인 커리큘럼이었습니다. React의 기초부터 실전까지 꼼꼼하게 배울 수 있었어요. 특히 실습 예제가 실무에 바로 적용할 수 있을 정도로 실용적이었습니다.', completionRate: 100, createdAt: '2026-01-28T10:00:00', updatedAt: '2026-01-28T10:00:00', isMyReview: false },
+        { reviewId: 102, courseTimeId: 1, userId: 16, userName: '이학습', userProfileImageUrl: null, rating: 5, content: 'hooks 부분이 특히 좋았습니다. useState, useEffect, useContext 등 실제로 많이 쓰이는 훅들을 깊이 있게 다뤄줘서 좋았어요.', completionRate: 100, createdAt: '2026-01-27T14:30:00', updatedAt: '2026-01-27T14:30:00', isMyReview: false },
+        { reviewId: 103, courseTimeId: 1, userId: 17, userName: '박코딩', userProfileImageUrl: null, rating: 5, content: '비전공자인데도 쉽게 따라갈 수 있었습니다. 강사님의 설명이 정말 친절하고 이해하기 쉬워요. 강력 추천합니다!', completionRate: 85, createdAt: '2026-01-26T09:15:00', updatedAt: '2026-01-26T09:15:00', isMyReview: false },
+        { reviewId: 104, courseTimeId: 1, userId: 18, userName: '최프론트', userProfileImageUrl: null, rating: 4, content: '전반적으로 만족스러운 강의였습니다. 다만 조금 더 심화 내용이 포함되면 좋겠어요. 기초를 다지기에는 최고의 강의입니다!', completionRate: 100, createdAt: '2026-01-25T16:00:00', updatedAt: '2026-01-25T16:00:00', isMyReview: false },
+        { reviewId: 105, courseTimeId: 1, userId: 19, userName: '정리액트', userProfileImageUrl: null, rating: 5, content: '회사에서 React 프로젝트를 맡게 되어 급하게 들었는데, 덕분에 무사히 프로젝트를 완수할 수 있었습니다.', completionRate: 100, createdAt: '2026-01-24T11:20:00', updatedAt: '2026-01-24T11:20:00', isMyReview: false },
+        { reviewId: 106, courseTimeId: 1, userId: 20, userName: '한개발자', userProfileImageUrl: null, rating: 4, content: '기초 강의로는 완벽합니다. 다음에 심화 과정도 수강할 예정이에요.', completionRate: 100, createdAt: '2026-01-23T13:45:00', updatedAt: '2026-01-23T13:45:00', isMyReview: false },
+      ],
+      // TypeScript 마스터 클래스 - 2024년 1기
+      2: [
+        { reviewId: 201, courseTimeId: 2, userId: 21, userName: '타입왕', userProfileImageUrl: null, rating: 5, content: '제네릭 부분이 정말 명확하게 설명되어 있어서 좋았습니다. 그동안 애매하게 알고 있던 개념들이 확실하게 정리되었어요.', completionRate: 100, createdAt: '2026-01-29T11:00:00', updatedAt: '2026-01-29T11:00:00', isMyReview: false },
+        { reviewId: 202, courseTimeId: 2, userId: 22, userName: '스크립터', userProfileImageUrl: null, rating: 4, content: '타입 시스템에 대한 이해도가 확 올라갔습니다. 다만 실습 프로젝트가 좀 더 다양했으면 좋겠어요.', completionRate: 90, createdAt: '2026-01-28T15:30:00', updatedAt: '2026-01-28T15:30:00', isMyReview: false },
+        { reviewId: 203, courseTimeId: 2, userId: 23, userName: '코드장인', userProfileImageUrl: null, rating: 4, content: '유틸리티 타입 챕터가 특히 유용했습니다. 실무에서 바로 활용하고 있어요.', completionRate: 100, createdAt: '2026-01-27T09:00:00', updatedAt: '2026-01-27T09:00:00', isMyReview: false },
+        { reviewId: 204, courseTimeId: 2, userId: 15, userName: '김개발', userProfileImageUrl: null, rating: 5, content: 'any 타입 지옥에서 벗어날 수 있게 해준 강의입니다. 이제 타입 에러가 두렵지 않아요!', completionRate: 100, createdAt: '2026-01-26T14:20:00', updatedAt: '2026-01-26T14:20:00', isMyReview: false },
+        { reviewId: 205, courseTimeId: 2, userId: 16, userName: '이학습', userProfileImageUrl: null, rating: 3, content: '내용은 좋지만 진도가 너무 빨라서 따라가기 힘들었어요. 기초 강의를 먼저 듣고 오시는 걸 추천합니다.', completionRate: 75, createdAt: '2026-01-25T10:00:00', updatedAt: '2026-01-25T10:00:00', isMyReview: false },
+      ],
+      // AWS 클라우드 입문 - 2024년 2기
+      3: [
+        { reviewId: 301, courseTimeId: 3, userId: 24, userName: '클라우드러버', userProfileImageUrl: null, rating: 5, content: 'AWS 서비스들의 관계와 사용 시나리오가 명확하게 정리되어 있어요. 자격증 준비에도 큰 도움이 됩니다!', completionRate: 100, createdAt: '2026-01-30T10:00:00', updatedAt: '2026-01-30T10:00:00', isMyReview: false },
+        { reviewId: 302, courseTimeId: 3, userId: 25, userName: '서버리스맨', userProfileImageUrl: null, rating: 5, content: 'EC2, S3, RDS 실습이 특히 좋았습니다. 실제 환경에서 직접 구축해보니 이해가 확 되더라고요.', completionRate: 100, createdAt: '2026-01-29T16:30:00', updatedAt: '2026-01-29T16:30:00', isMyReview: false },
+        { reviewId: 303, courseTimeId: 3, userId: 26, userName: '데브옵스초보', userProfileImageUrl: null, rating: 4, content: '입문자에게 딱 맞는 난이도입니다. Lambda와 API Gateway 부분이 특히 실용적이었어요.', completionRate: 95, createdAt: '2026-01-28T11:20:00', updatedAt: '2026-01-28T11:20:00', isMyReview: false },
+        { reviewId: 304, courseTimeId: 3, userId: 17, userName: '박코딩', userProfileImageUrl: null, rating: 4, content: '비용 최적화 파트가 실무에서 정말 유용합니다. 회사에서 바로 적용해봤어요.', completionRate: 100, createdAt: '2026-01-27T09:45:00', updatedAt: '2026-01-27T09:45:00', isMyReview: false },
+        { reviewId: 305, courseTimeId: 3, userId: 27, userName: '인프라지망생', userProfileImageUrl: null, rating: 5, content: 'VPC 네트워크 구성 부분이 가장 도움이 많이 되었습니다. 그림과 함께 설명해주셔서 이해하기 쉬웠어요.', completionRate: 100, createdAt: '2026-01-26T14:00:00', updatedAt: '2026-01-26T14:00:00', isMyReview: false },
+        { reviewId: 306, courseTimeId: 3, userId: 28, userName: '클라우드뉴비', userProfileImageUrl: null, rating: 4, content: 'SAA 자격증 취득에 많은 도움이 되었습니다. 감사합니다!', completionRate: 100, createdAt: '2026-01-25T08:30:00', updatedAt: '2026-01-25T08:30:00', isMyReview: false },
+      ],
+      // Python 데이터 분석 - 무료 체험반
+      4: [
+        { reviewId: 401, courseTimeId: 4, userId: 29, userName: '데이터사이언티스트', userProfileImageUrl: null, rating: 4, content: 'pandas와 numpy 기초를 잡기 좋은 강의입니다. 실습 데이터셋도 현실적이에요.', completionRate: 100, createdAt: '2026-01-28T13:00:00', updatedAt: '2026-01-28T13:00:00', isMyReview: false },
+        { reviewId: 402, courseTimeId: 4, userId: 30, userName: '분석초보', userProfileImageUrl: null, rating: 4, content: '무료 체험인데도 내용이 알찹니다. 정규 과정도 수강할 예정이에요.', completionRate: 80, createdAt: '2026-01-27T16:45:00', updatedAt: '2026-01-27T16:45:00', isMyReview: false },
+        { reviewId: 403, courseTimeId: 4, userId: 31, userName: '파이썬러버', userProfileImageUrl: null, rating: 5, content: '시각화 부분이 특히 좋았어요. matplotlib, seaborn 사용법을 제대로 배웠습니다.', completionRate: 100, createdAt: '2026-01-26T10:30:00', updatedAt: '2026-01-26T10:30:00', isMyReview: false },
+        { reviewId: 404, courseTimeId: 4, userId: 32, userName: '엑셀탈출러', userProfileImageUrl: null, rating: 3, content: '엑셀에서 파이썬으로 넘어가려는 분들께 추천합니다. 다만 속도가 조금 느린 편이에요.', completionRate: 65, createdAt: '2026-01-25T14:15:00', updatedAt: '2026-01-25T14:15:00', isMyReview: false },
+      ],
+      // Next.js 실전 프로젝트
+      5: [
+        { reviewId: 501, courseTimeId: 5, userId: 33, userName: '풀스택지망', userProfileImageUrl: null, rating: 5, content: 'App Router 기반의 최신 Next.js를 제대로 배울 수 있었습니다. Server Actions까지 다뤄줘서 정말 좋았어요!', completionRate: 100, createdAt: '2026-01-29T09:00:00', updatedAt: '2026-01-29T09:00:00', isMyReview: false },
+        { reviewId: 502, courseTimeId: 5, userId: 34, userName: '리액트마스터', userProfileImageUrl: null, rating: 5, content: 'React를 어느 정도 아는 상태에서 들으면 정말 좋습니다. SSR/SSG 개념이 확실히 잡혔어요.', completionRate: 100, createdAt: '2026-01-28T14:30:00', updatedAt: '2026-01-28T14:30:00', isMyReview: false },
+        { reviewId: 503, courseTimeId: 5, userId: 35, userName: '프론트엔드장인', userProfileImageUrl: null, rating: 5, content: '실전 프로젝트 중심이라 포트폴리오에 바로 넣을 수 있어요. 강력 추천합니다!', completionRate: 95, createdAt: '2026-01-27T11:20:00', updatedAt: '2026-01-27T11:20:00', isMyReview: false },
+        { reviewId: 504, courseTimeId: 5, userId: 15, userName: '김개발', userProfileImageUrl: null, rating: 4, content: '배포 파트가 특히 유용했습니다. Vercel 배포부터 도메인 연결까지 한번에 배웠네요.', completionRate: 100, createdAt: '2026-01-26T16:00:00', updatedAt: '2026-01-26T16:00:00', isMyReview: false },
+        { reviewId: 505, courseTimeId: 5, userId: 36, userName: '웹개발러', userProfileImageUrl: null, rating: 5, content: 'ISR 개념이 명쾌하게 설명되어 있어서 좋았습니다. 블로그 만들기 프로젝트로 실습하니 이해가 잘 되더라고요.', completionRate: 100, createdAt: '2026-01-25T09:30:00', updatedAt: '2026-01-25T09:30:00', isMyReview: false },
+      ],
+    };
+
+    const reviews = reviewsMap[timeId] || [
+      { reviewId: 901, courseTimeId: timeId, userId: 15, userName: '김개발', userProfileImageUrl: null, rating: 4, content: '유익한 강의였습니다. 기초를 다지기에 좋아요.', completionRate: 100, createdAt: '2026-01-27T10:00:00', updatedAt: '2026-01-27T10:00:00', isMyReview: false },
+      { reviewId: 902, courseTimeId: timeId, userId: 16, userName: '이학습', userProfileImageUrl: null, rating: 4, content: '설명이 친절해서 따라가기 쉬웠습니다.', completionRate: 90, createdAt: '2026-01-26T15:00:00', updatedAt: '2026-01-26T15:00:00', isMyReview: false },
+      { reviewId: 903, courseTimeId: timeId, userId: 17, userName: '박코딩', userProfileImageUrl: null, rating: 5, content: '실습 예제가 실무에서 바로 쓸 수 있어서 좋았어요.', completionRate: 100, createdAt: '2026-01-25T11:00:00', updatedAt: '2026-01-25T11:00:00', isMyReview: false },
+    ];
+
+    const startIndex = page * size;
+    const paginatedReviews = reviews.slice(startIndex, startIndex + size);
+
+    // 평균 평점 계산
+    const avgRating = reviews.length > 0
+      ? Number((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1))
+      : 0;
+
+    return HttpResponse.json(apiResponse({
+      reviews: paginatedReviews,
+      totalElements: reviews.length,
+      totalPages: Math.ceil(reviews.length / size),
+      currentPage: page,
+      pageSize: size,
+      averageRating: avgRating,
+      reviewCount: reviews.length,
+    }));
+  }),
+
+  // 리뷰 작성
+  http.post('/api/times/:timeId/reviews', async ({ params, request }) => {
+    await delay(50);
+    const body = await request.json() as { rating: number; content: string };
+    const newReview = {
+      reviewId: 100,
+      courseTimeId: Number(params.timeId),
+      userId: 14,
+      userName: '정학습',
+      userProfileImageUrl: null,
+      rating: body.rating,
+      content: body.content,
+      completionRate: 65,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isMyReview: true,
+    };
+    return HttpResponse.json(apiResponse(newReview), { status: 201 });
+  }),
+
+  // 리뷰 수정
+  http.patch('/api/times/:timeId/reviews/:reviewId', async ({ params, request }) => {
+    await delay(50);
+    const body = await request.json() as { rating: number; content: string };
+    const updatedReview = {
+      reviewId: Number(params.reviewId),
+      courseTimeId: Number(params.timeId),
+      userId: 14,
+      userName: '정학습',
+      userProfileImageUrl: null,
+      rating: body.rating,
+      content: body.content,
+      completionRate: 65,
+      createdAt: '2026-01-20T10:00:00',
+      updatedAt: new Date().toISOString(),
+      isMyReview: true,
+    };
+    return HttpResponse.json(apiResponse(updatedReview));
+  }),
+
+  // 리뷰 삭제
+  http.delete('/api/times/:timeId/reviews/:reviewId', async () => {
+    await delay(50);
+    return HttpResponse.json(apiResponse({ success: true }));
+  }),
+
   // ========== Enrollments ==========
   http.get('/api/enrollments', async () => {
     await delay(30);
