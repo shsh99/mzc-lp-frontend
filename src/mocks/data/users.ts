@@ -354,13 +354,25 @@ export const mockUsers = {
   // 기본 사용자 (하위 호환용 - MZC 테넌트 관리자)
   currentUser: mockUserDetails[10],
   users: allUsersList,
+  // LearningStatsResponse 형식에 맞게 수정
   learningStats: {
-    totalEnrollments: 15,
-    completedCourses: 8,
-    inProgressCourses: 5,
-    totalLearningMinutes: 2400,
-    averageScore: 85.5,
-    certificatesEarned: 6,
+    overview: {
+      totalCourses: 15,
+      inProgress: 3,
+      completed: 8,
+      dropped: 2,
+      failed: 2,
+      completionRate: 53.3,
+      byType: [
+        { type: 'ONLINE', count: 10 },
+        { type: 'OFFLINE', count: 3 },
+        { type: 'BLENDED', count: 2 },
+      ],
+    },
+    progress: {
+      averageProgress: 72.5,
+      averageScore: 85.5,
+    },
   },
 };
 

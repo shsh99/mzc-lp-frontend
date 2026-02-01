@@ -355,6 +355,89 @@ export const handlers = [
     return HttpResponse.json(apiResponse(paginatedResponse(filteredCourseTimes, page, size)));
   }),
 
+  // 차수 상세 조회 (Public)
+  http.get('/api/public/course-times/:id', async ({ params }) => {
+    await delay(30);
+    const courseTimeId = Number(params.id);
+    const courseTime = mockCourseTimes.find(ct => ct.id === courseTimeId);
+
+    if (!courseTime) {
+      return HttpResponse.json(
+        errorResponse('강의를 찾을 수 없습니다.', 'COURSE_TIME_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+
+    // CourseTimePublicDetailResponse 형식으로 변환
+    const detailResponse = {
+      id: courseTime.id,
+      title: courseTime.title,
+      status: courseTime.status,
+      deliveryType: courseTime.deliveryType,
+      isOnDemand: courseTime.isOnDemand,
+      enrollStartDate: courseTime.enrollStartDate,
+      enrollEndDate: courseTime.enrollEndDate,
+      classStartDate: courseTime.classStartDate,
+      classEndDate: courseTime.classEndDate,
+      capacity: courseTime.capacity,
+      currentEnrollment: courseTime.currentEnrollment,
+      availableSeats: courseTime.availableSeats,
+      price: courseTime.price,
+      isFree: courseTime.isFree,
+      enrollmentMethod: courseTime.enrollmentMethod,
+      allowLateEnrollment: false,
+      minProgressForCompletion: 80,
+      locationInfo: courseTime.deliveryType === 'OFFLINE' || courseTime.deliveryType === 'BLENDED'
+        ? '서울시 강남구 테헤란로 123, MZC 빌딩 3층'
+        : null,
+      program: courseTime.program,
+      course: courseTime.program ? {
+        id: courseTime.program.id,
+        title: courseTime.program.title,
+        description: courseTime.program.description,
+      } : null,
+      curriculum: [
+        {
+          id: 1,
+          itemName: '1장. 기초 개념',
+          itemType: 'FOLDER',
+          isFolder: true,
+          duration: null,
+          children: [
+            { id: 2, itemName: '강의 소개', itemType: 'VIDEO', isFolder: false, duration: 600, children: [] },
+            { id: 3, itemName: '핵심 개념 이해', itemType: 'VIDEO', isFolder: false, duration: 900, children: [] },
+            { id: 4, itemName: '개념 퀴즈', itemType: 'QUIZ', isFolder: false, duration: 300, children: [] },
+          ],
+        },
+        {
+          id: 5,
+          itemName: '2장. 심화 학습',
+          itemType: 'FOLDER',
+          isFolder: true,
+          duration: null,
+          children: [
+            { id: 6, itemName: '고급 기능', itemType: 'VIDEO', isFolder: false, duration: 1200, children: [] },
+            { id: 7, itemName: '실습 과제', itemType: 'ASSIGNMENT', isFolder: false, duration: 1800, children: [] },
+          ],
+        },
+        {
+          id: 8,
+          itemName: '3장. 프로젝트',
+          itemType: 'FOLDER',
+          isFolder: true,
+          duration: null,
+          children: [
+            { id: 9, itemName: '프로젝트 소개', itemType: 'VIDEO', isFolder: false, duration: 600, children: [] },
+            { id: 10, itemName: '최종 평가', itemType: 'EXAM', isFolder: false, duration: 3600, children: [] },
+          ],
+        },
+      ],
+      instructors: courseTime.instructors,
+    };
+
+    return HttpResponse.json(apiResponse(detailResponse));
+  }),
+
   // ========== Tenant Settings ==========
   http.get('/api/tenant/settings/branding', async () => {
     await delay(30);
@@ -526,7 +609,23 @@ export const handlers = [
   http.get('/api/times/:id', async ({ params }) => {
     await delay(30);
     const time = mockCourseTimes.find(t => t.id === Number(params.id));
-    return HttpResponse.json(apiResponse(time || mockCourseTimes[0]));
+    if (!time) {
+      return HttpResponse.json(
+        errorResponse('차수를 찾을 수 없습니다.', 'COURSE_TIME_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+    // BackendCourseTimeResponse 형식으로 반환
+    return HttpResponse.json(apiResponse({
+      id: time.id,
+      title: time.title,
+      programId: time.program?.id ?? null,
+      programName: time.program?.title ?? null,
+      classStartDate: time.classStartDate,
+      classEndDate: time.classEndDate,
+      snapshotId: time.id, // mock에서는 id를 사용
+      courseTitle: time.program?.title ?? null,
+    }));
   }),
 
   // ========== Enrollments ==========
