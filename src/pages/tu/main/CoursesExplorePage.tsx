@@ -351,8 +351,8 @@ export function CoursesExplorePage() {
     return (
       <div className={`min-h-screen ${isDark ? 'landing-dark bg-[#1e1e1e]' : 'landing-light bg-gray-50'}`}>
         <LandingHeader />
-        <main className="w-full px-4 md:px-8 lg:px-16 py-12">
-          <div className="flex items-center justify-center py-20">
+        <main className="w-full px-3 sm:px-4 md:px-6 lg:px-12 xl:px-16 py-6 sm:py-8 md:py-10 lg:py-12">
+          <div className="flex items-center justify-center py-10 sm:py-12 md:py-16 lg:py-20">
             <Loader2 className="w-8 h-8 animate-spin text-[#6778ff]" />
             <span className={`ml-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               강의를 불러오는 중...
@@ -369,8 +369,8 @@ export function CoursesExplorePage() {
     return (
       <div className={`min-h-screen ${isDark ? 'landing-dark bg-[#1e1e1e]' : 'landing-light bg-gray-50'}`}>
         <LandingHeader />
-        <main className="w-full px-4 md:px-8 lg:px-16 py-12">
-          <div className="text-center py-20">
+        <main className="w-full px-3 sm:px-4 md:px-6 lg:px-12 xl:px-16 py-6 sm:py-8 md:py-10 lg:py-12">
+          <div className="text-center py-10 sm:py-12 md:py-16 lg:py-20">
             <p className={`text-lg ${isDark ? 'text-red-400' : 'text-red-500'}`}>
               강의를 불러오는데 실패했습니다.
             </p>
@@ -391,19 +391,19 @@ export function CoursesExplorePage() {
     <div className={`min-h-screen ${isDark ? 'landing-dark bg-[#1e1e1e]' : 'landing-light bg-gray-50'}`}>
       <LandingHeader />
 
-      <main className="w-full px-4 md:px-8 lg:px-16 py-12">
+      <main className="w-full px-3 sm:px-4 md:px-6 lg:px-12 xl:px-16 py-6 sm:py-8 md:py-10 lg:py-12">
         {/* Page Title */}
-        <div className="mb-8">
-          <h1 className={`text-3xl md:text-4xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        <div className="mb-4 sm:mb-6 md:mb-8">
+          <h1 className={`text-2xl sm:text-3xl md:text-4xl font-bold mb-1 sm:mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             전체 강의
           </h1>
-          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+          <p className={`text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             원하는 강의를 찾아보세요
           </p>
         </div>
 
         {/* Search & Filter Bar */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
+        <div className="flex flex-col md:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
           <div className="flex-1 relative">
             <Search
               className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${
@@ -619,13 +619,13 @@ export function CoursesExplorePage() {
         </p>
 
         {/* Course Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
           {courseTimes.length > 0 ? (
             courseTimes.map((courseTime) => (
               <CourseTimeCard key={courseTime.id} courseTime={courseTime} isDark={isDark} />
             ))
           ) : (
-            <p className={`col-span-full text-center py-20 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            <p className={`col-span-full text-center py-10 sm:py-12 md:py-16 lg:py-20 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
               검색 결과가 없습니다.
             </p>
           )}

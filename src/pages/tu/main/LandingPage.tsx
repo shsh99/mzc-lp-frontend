@@ -215,14 +215,14 @@ export function LandingPage() {
         <HeroSection />
 
         {/* Search/Category Bar */}
-        <div className="w-full px-6 md:px-12 lg:px-16 py-12">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-6 sm:py-8 md:py-10 lg:py-12">
           {/* Quick Category Chips */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {categoryOptions.map((cat) => (
               <button
                 key={cat.code}
                 onClick={() => setActiveCategoryId(cat.id)}
-                className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300
+                className={`px-3 py-2 sm:px-4 sm:py-2.5 md:px-5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300
                   ${
                     activeCategoryId === cat.id
                       ? 'landing-btn-primary shadow-lg'
@@ -237,10 +237,10 @@ export function LandingPage() {
         </div>
 
         {/* Featured Section 1: User's choice */}
-        <section className="w-full px-6 md:px-12 lg:px-16 pb-20">
-          <div className="flex items-center justify-between mb-8">
+        <section className="w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-10 sm:pb-12 md:pb-16 lg:pb-20">
+          <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold landing-text-primary">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold landing-text-primary">
                 {activeCategoryId === null
                   ? t.landing.featuredCourses
                   : `${activeCategory?.name ?? ''} ${t.landing.relatedCourses}`}
@@ -256,11 +256,11 @@ export function LandingPage() {
           </div>
 
           {isCoursesLoading ? (
-            <div className="flex justify-center items-center py-20">
+            <div className="flex justify-center items-center py-10 sm:py-12 md:py-16 lg:py-20">
               <Loader2 className="w-8 h-8 animate-spin text-[#6778ff]" />
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
               {filteredCourses.length > 0 ? (
                 filteredCourses.slice(0, 10).map((course) => <LandingCourseCard key={course.id} {...course} />)
               ) : (
@@ -273,11 +273,11 @@ export function LandingPage() {
         </section>
 
         {/* Featured Section 2: New Arrivals */}
-        <section className="landing-section-alt py-20">
-          <div className="w-full px-6 md:px-12 lg:px-16">
-            <div className="flex items-center justify-between mb-8">
+        <section className="landing-section-alt py-10 sm:py-12 md:py-16 lg:py-20">
+          <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
+            <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
               <div>
-                <h2 className="text-2xl md:text-3xl font-bold landing-text-primary">{t.landing.newCourses}</h2>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold landing-text-primary">{t.landing.newCourses}</h2>
                 <p className="landing-text-muted text-sm mt-2">{t.landing.newCoursesDesc}</p>
               </div>
               <a
@@ -289,11 +289,11 @@ export function LandingPage() {
             </div>
 
             {isCoursesLoading ? (
-              <div className="flex justify-center items-center py-20">
+              <div className="flex justify-center items-center py-10 sm:py-12 md:py-16 lg:py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-[#6778ff]" />
               </div>
             ) : newCourses.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
                 {newCourses.map((course) => (
                   <LandingCourseCard key={`new-${course.id}`} {...course} />
                 ))}
@@ -307,10 +307,10 @@ export function LandingPage() {
         </section>
 
         {/* Featured Section 3: Recommendation */}
-        <section className="w-full px-6 md:px-12 lg:px-16 py-20">
-          <div className="flex items-center justify-between mb-8">
+        <section className="w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-10 sm:py-12 md:py-16 lg:py-20">
+          <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold landing-text-primary">{t.landing.beginnerCourses}</h2>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold landing-text-primary">{t.landing.beginnerCourses}</h2>
               <p className="landing-text-muted text-sm mt-2">{t.landing.beginnerCoursesDesc}</p>
             </div>
             <Link
@@ -321,11 +321,11 @@ export function LandingPage() {
             </Link>
           </div>
           {isCoursesLoading ? (
-            <div className="flex justify-center items-center py-20">
+            <div className="flex justify-center items-center py-10 sm:py-12 md:py-16 lg:py-20">
               <Loader2 className="w-8 h-8 animate-spin text-[#6778ff]" />
             </div>
           ) : recommendedCourses.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
               {recommendedCourses.map((course) => (
                 <LandingCourseCard key={`rec-${course.id}`} {...course} />
               ))}
@@ -338,11 +338,11 @@ export function LandingPage() {
         </section>
 
         {/* Popular Instructors Section */}
-        <section className="landing-section-alt py-20">
-          <div className="w-full px-6 md:px-12 lg:px-16">
-            <div className="flex items-center justify-between mb-8">
+        <section className="landing-section-alt py-10 sm:py-12 md:py-16 lg:py-20">
+          <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
+            <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
               <div>
-                <h2 className="text-2xl md:text-3xl font-bold landing-text-primary">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold landing-text-primary">
                   인기 강사
                 </h2>
                 <p className="landing-text-muted text-sm mt-2">
@@ -352,7 +352,7 @@ export function LandingPage() {
             </div>
 
             {isInstructorsLoading ? (
-              <div className="flex justify-center items-center py-20">
+              <div className="flex justify-center items-center py-10 sm:py-12 md:py-16 lg:py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-[#6778ff]" />
               </div>
             ) : (
@@ -411,7 +411,7 @@ export function LandingPage() {
         </section>
 
         {/* Become Instructor CTA Section */}
-        <section className="w-full px-6 md:px-12 lg:px-16 py-20">
+        <section className="w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-10 sm:py-12 md:py-16 lg:py-20">
           <div className={`relative overflow-hidden rounded-3xl ${
             isDark
               ? 'bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23]'
@@ -423,7 +423,7 @@ export function LandingPage() {
             </div>
             <div className="relative z-10 p-8 md:p-12 lg:p-16 flex flex-col md:flex-row items-center justify-between gap-8">
               <div className="text-center md:text-left">
-                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4">
+                <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4">
                   당신의 지식을 나누어 보세요
                 </h2>
                 <p className="text-white/80 text-lg max-w-xl">

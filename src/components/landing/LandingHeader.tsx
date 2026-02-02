@@ -197,20 +197,20 @@ export function LandingHeader() {
       {/* Main Navigation - headerEnabled 설정에 따라 표시 */}
       {headerEnabled && (
         <div className={`w-full sticky top-0 z-50 border-b ${isDark ? 'glass-dark border-white/10' : 'border-gray-200'}`} style={{ backgroundColor: isDark ? undefined : '#fafafa' }}>
-          <div className="w-full px-6 md:px-12 lg:px-16 h-16 flex items-center justify-between gap-6">
+          <div className="w-full px-3 sm:px-4 md:px-8 lg:px-12 xl:px-16 h-14 md:h-16 flex items-center justify-between gap-2 sm:gap-4 md:gap-6">
             {/* Left: Logo & Menu */}
-            <div className="flex items-center gap-8 ml-2 md:ml-4">
+            <div className="flex items-center gap-3 sm:gap-4 md:gap-8 ml-0 md:ml-4">
               {/* Logo - showLogo 설정에 따라 표시 */}
               {showLogo && (
-              <Link to={prefixPath('/tu/b2c')} className={`flex items-center gap-2 font-bold text-xl tracking-tight ${isDark ? '' : 'text-gray-900'}`}>
+              <Link to={prefixPath('/tu/b2c')} className={`flex items-center gap-1.5 sm:gap-2 font-bold text-lg sm:text-xl tracking-tight ${isDark ? '' : 'text-gray-900'}`}>
                 {fullLogoUrl ? (
-                  <img src={fullLogoUrl} alt={tenantName} className="h-8 object-contain" />
+                  <img src={fullLogoUrl} alt={tenantName} className="h-6 sm:h-8 object-contain" />
                 ) : (
                   <>
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#6778ff] via-[#a855f7] to-[#6bc2f0] flex items-center justify-center shadow-lg shadow-purple-500/20">
-                      <span className="text-white font-bold text-lg">M</span>
+                    <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#6778ff] via-[#a855f7] to-[#6bc2f0] flex items-center justify-center shadow-lg shadow-purple-500/20">
+                      <span className="text-white font-bold text-sm sm:text-lg">M</span>
                     </div>
-                    <span className="gradient-text font-bold">{tenantName}</span>
+                    <span className="gradient-text font-bold hidden xs:inline">{tenantName}</span>
                   </>
                 )}
               </Link>
@@ -278,13 +278,13 @@ export function LandingHeader() {
           )}
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-3 md:gap-5 mr-2 md:mr-4">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-4 mr-0 md:mr-4">
+            <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
               {/* Theme Toggle Button - showThemeToggle 설정에 따라 표시 */}
               {showThemeToggle && (
                 <button
                   onClick={toggleTheme}
-                  className={`p-2 rounded-lg transition-colors ${
+                  className={`p-2.5 sm:p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center ${
                     isDark
                       ? 'text-gray-400 hover:text-white hover:bg-white/10'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
@@ -298,7 +298,7 @@ export function LandingHeader() {
               {showCart && (
                 <Link
                   to={prefixPath('/tu/b2c/cart')}
-                  className={`p-2 rounded-lg transition-colors relative ${
+                  className={`p-2.5 sm:p-2 rounded-lg transition-colors relative min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center ${
                     isDark
                       ? 'text-gray-400 hover:text-white hover:bg-white/10'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
@@ -311,7 +311,7 @@ export function LandingHeader() {
               {showWishlist && (
                 <Link
                   to={prefixPath('/tu/b2c/wishlist')}
-                  className={`p-2 rounded-lg transition-colors relative ${
+                  className={`p-2.5 sm:p-2 rounded-lg transition-colors relative min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center ${
                     isDark
                       ? 'text-gray-400 hover:text-white hover:bg-white/10'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
@@ -324,7 +324,7 @@ export function LandingHeader() {
               {showNotifications && (
                 <Link
                   to={prefixPath('/tu/b2c/notifications')}
-                  className={`p-2 rounded-lg transition-colors relative ${
+                  className={`p-2.5 sm:p-2 rounded-lg transition-colors relative min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center ${
                     isDark
                       ? 'text-gray-400 hover:text-white hover:bg-white/10'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
@@ -496,7 +496,7 @@ export function LandingHeader() {
               {/* Mobile Menu Toggle */}
               <button
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className={`p-2 md:hidden ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                className={`p-2.5 md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg ${isDark ? 'text-gray-400 hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100'}`}
                 aria-label={t.landing.openMenu}
               >
                 {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
