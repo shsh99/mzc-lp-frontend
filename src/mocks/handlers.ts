@@ -412,11 +412,10 @@ export const handlers = [
     // 과정 정보 추가
     const content = paged.map(e => {
       const courseTime = mockCourseTimes.find(ct => ct.id === e.courseTimeId);
-      const course = mockCourses.find(c => c.id === courseTime?.courseId);
       return {
         ...e,
-        courseTitle: course?.title || `Course ${e.courseTimeId}`,
-        courseTimeName: courseTime?.name || `차수 ${e.courseTimeId}`,
+        courseTitle: courseTime?.program?.title || `Course ${e.courseTimeId}`,
+        courseTimeName: courseTime?.title || `차수 ${e.courseTimeId}`,
       };
     });
 
