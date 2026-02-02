@@ -1125,12 +1125,28 @@ export const handlers = [
     const courseIdParam = url.searchParams.get('courseId');
     const page = Number(url.searchParams.get('page')) || 0;
     const size = Number(url.searchParams.get('size')) || 10;
+    const keyword = url.searchParams.get('keyword') || '';
+    const status = url.searchParams.get('status') || '';
 
     // courseId가 제공된 경우 해당 과정의 차수만 필터링
     let filteredTimes = mockCourseTimes;
     if (courseIdParam) {
       const courseId = Number(courseIdParam);
-      filteredTimes = mockCourseTimes.filter(time => time.program?.id === courseId);
+      filteredTimes = filteredTimes.filter(time => time.program?.id === courseId);
+    }
+
+    // 키워드 검색 (차수명, 과정명으로 검색)
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      filteredTimes = filteredTimes.filter(time =>
+        time.title.toLowerCase().includes(lowerKeyword) ||
+        (time.program?.title && time.program.title.toLowerCase().includes(lowerKeyword))
+      );
+    }
+
+    // 상태 필터
+    if (status) {
+      filteredTimes = filteredTimes.filter(time => time.status === status);
     }
 
     // CourseTimeResponse 형식으로 변환 (courseTitle, instructors 변환)
@@ -1144,7 +1160,19 @@ export const handlers = [
       })) ?? [],
     }));
 
-    return HttpResponse.json(apiResponse(paginatedResponse(transformedTimes, page, size)));
+    // 페이지네이션 처리
+    const totalElements = transformedTimes.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const start = page * size;
+    const content = transformedTimes.slice(start, start + size);
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements,
+      totalPages,
+      size,
+      number: page,
+    }));
   }),
 
   http.get('/api/times/:id', async ({ params }) => {
