@@ -25,7 +25,7 @@ import {
   mockNotifications,
   mockTUDashboard,
   mockSADashboard,
-  mockCODashboard,
+  mockCODashboardByPeriod,
   mockTADashboardByPeriod,
 } from './data';
 import {
@@ -1824,10 +1824,22 @@ Server Components와 함께 사용하면 정말 편해요!`, author: { id: 36, n
     return HttpResponse.json(apiResponse(mockSADashboard));
   }),
 
-  // CO Dashboard (OPERATOR)
-  http.get('/api/operator/dashboard/tasks', async () => {
+  // CO Dashboard (OPERATOR) - 기간별 필터링 지원
+  http.get('/api/operator/dashboard/tasks', async ({ request }) => {
     await delay(50);
-    return HttpResponse.json(apiResponse(mockCODashboard));
+    const url = new URL(request.url);
+    const periodParam = url.searchParams.get('period');
+
+    // 프론트엔드 파라미터를 mock 데이터 키로 매핑
+    const periodMap: Record<string, keyof typeof mockCODashboardByPeriod> = {
+      '7d': 'WEEK',
+      '30d': 'MONTH',
+    };
+
+    const periodKey = periodParam ? (periodMap[periodParam] || 'ALL') : 'ALL';
+    const dashboardData = mockCODashboardByPeriod[periodKey];
+
+    return HttpResponse.json(apiResponse(dashboardData));
   }),
 
   // ========== TU Dashboard ==========
