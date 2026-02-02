@@ -95,17 +95,17 @@ export const mockTenantNotices = [
     id: 1,
     tenantId: 1,
     title: '시스템 정기 점검 안내',
-    content: `<h2>시스템 정기 점검 안내</h2>
-<p>안녕하세요, MZC Learn 관리팀입니다.</p>
-<p>2026년 2월 1일 새벽 2시부터 4시까지 시스템 정기 점검이 진행됩니다.</p>
-<h3>점검 내용</h3>
-<ul>
-  <li>서버 성능 최적화</li>
-  <li>보안 패치 적용</li>
-  <li>데이터베이스 정비</li>
-</ul>
-<p>해당 시간에는 서비스 이용이 제한될 수 있으니 양해 부탁드립니다.</p>
-<p>감사합니다.</p>`,
+    content: `안녕하세요, MZC Learn 관리팀입니다.
+
+2026년 2월 1일 새벽 2시부터 4시까지 시스템 정기 점검이 진행됩니다.
+
+[점검 내용]
+• 서버 성능 최적화
+• 보안 패치 적용
+• 데이터베이스 정비
+
+해당 시간에는 서비스 이용이 제한될 수 있으니 양해 부탁드립니다.
+감사합니다.`,
     type: 'URGENT' as const,
     status: 'PUBLISHED' as const,
     targetAudience: 'ALL' as const,
@@ -122,16 +122,16 @@ export const mockTenantNotices = [
     id: 2,
     tenantId: 1,
     title: '신규 과정 오픈 안내',
-    content: `<h2>신규 과정 오픈 안내</h2>
-<p>안녕하세요, MZC Learn 관리팀입니다.</p>
-<p>React 19 마스터 클래스가 새롭게 오픈되었습니다!</p>
-<h3>과정 특징</h3>
-<ul>
-  <li>최신 React 19 버전 완벽 정리</li>
-  <li>Server Components 실전 활용법</li>
-  <li>실무 프로젝트 기반 학습</li>
-</ul>
-<p>최신 기술 트렌드를 학습하고 실무 역량을 키워보세요.</p>`,
+    content: `안녕하세요, MZC Learn 관리팀입니다.
+
+React 19 마스터 클래스가 새롭게 오픈되었습니다!
+
+[과정 특징]
+• 최신 React 19 버전 완벽 정리
+• Server Components 실전 활용법
+• 실무 프로젝트 기반 학습
+
+최신 기술 트렌드를 학습하고 실무 역량을 키워보세요.`,
     type: 'IMPORTANT' as const,
     status: 'PUBLISHED' as const,
     targetAudience: 'USER' as const,
@@ -148,18 +148,19 @@ export const mockTenantNotices = [
     id: 3,
     tenantId: 1,
     title: '무료 체험 기간 연장 이벤트',
-    content: `<h2>무료 체험 기간 연장 이벤트</h2>
-<p>좋은 소식을 전해드립니다!</p>
-<p>무료 체험 기간이 <strong>14일</strong>로 연장되었습니다.</p>
-<h3>이벤트 기간</h3>
-<p>2026년 1월 15일 ~ 2026년 2월 28일</p>
-<h3>참여 방법</h3>
-<ol>
-  <li>회원가입 후 무료 체험 시작</li>
-  <li>14일간 모든 과정 무료 수강</li>
-  <li>마음에 드는 과정 정식 구매</li>
-</ol>
-<p>이 기회를 놓치지 마세요!</p>`,
+    content: `좋은 소식을 전해드립니다!
+
+무료 체험 기간이 14일로 연장되었습니다.
+
+[이벤트 기간]
+2026년 1월 15일 ~ 2026년 2월 28일
+
+[참여 방법]
+1. 회원가입 후 무료 체험 시작
+2. 14일간 모든 과정 무료 수강
+3. 마음에 드는 과정 정식 구매
+
+이 기회를 놓치지 마세요!`,
     type: 'EVENT' as const,
     status: 'PUBLISHED' as const,
     targetAudience: 'ALL' as const,
@@ -176,16 +177,16 @@ export const mockTenantNotices = [
     id: 4,
     tenantId: 1,
     title: '2월 교육 일정 안내',
-    content: `<h2>2026년 2월 교육 일정</h2>
-<p>안녕하세요, MZC Learn 관리팀입니다.</p>
-<p>2026년 2월 교육 일정을 안내드립니다.</p>
-<h3>신규 오픈 과정</h3>
-<ul>
-  <li>2/1 - TypeScript 심화 과정</li>
-  <li>2/10 - AWS 자격증 대비반</li>
-  <li>2/15 - Python 데이터 분석 입문</li>
-</ul>
-<p>자세한 내용은 교육 탐색 메뉴에서 확인해주세요.</p>`,
+    content: `안녕하세요, MZC Learn 관리팀입니다.
+
+2026년 2월 교육 일정을 안내드립니다.
+
+[신규 오픈 과정]
+• 2/1 - TypeScript 심화 과정
+• 2/10 - AWS 자격증 대비반
+• 2/15 - Python 데이터 분석 입문
+
+자세한 내용은 교육 탐색 메뉴에서 확인해주세요.`,
     type: 'GENERAL' as const,
     status: 'PUBLISHED' as const,
     targetAudience: 'USER' as const,
@@ -202,10 +203,10 @@ export const mockTenantNotices = [
     id: 5,
     tenantId: 1,
     title: '운영자 교육 안내',
-    content: `<h2>운영자 교육 안내</h2>
-<p>운영자를 위한 시스템 사용 교육이 예정되어 있습니다.</p>
-<h3>교육 일정</h3>
-<p>추후 공지 예정</p>`,
+    content: `운영자를 위한 시스템 사용 교육이 예정되어 있습니다.
+
+[교육 일정]
+추후 공지 예정`,
     type: 'GENERAL' as const,
     status: 'DRAFT' as const,
     targetAudience: 'OPERATOR' as const,

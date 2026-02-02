@@ -100,6 +100,9 @@ export interface CourseTimeCatalogResponse {
   isFree: boolean;
   program: ProgramSummaryResponse | null;
   instructors: InstructorSummaryResponse[];
+  // 수강평 관련 (Mock 데이터용)
+  rating?: number;
+  reviewCount?: number;
 }
 
 /** 강의(Course) 요약 응답 */

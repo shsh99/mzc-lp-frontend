@@ -26,20 +26,25 @@ interface BackendCourseResponse {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  // Mock 데이터에서 제공하는 추가 필드
+  rating?: number;
+  reviewCount?: number;
+  enrollmentCount?: number;
+  instructorName?: string;
 }
 
 // 백엔드 응답을 프론트엔드 형식으로 변환
 const transformCourse = (course: BackendCourseResponse): CourseExploreItem => ({
   id: course.courseId,
   title: course.title,
-  instructor: '강사명',  // 백엔드에서 강사 정보가 없어 기본값 사용
+  instructor: course.instructorName || '강사명',
   originalPrice: 0,
   price: 0,
   image: course.thumbnailUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop',
   discount: 0,
-  rating: 4.5,
-  reviewCount: 0,
-  studentCount: 0,
+  rating: course.rating ?? 4.5,
+  reviewCount: course.reviewCount ?? 0,
+  studentCount: course.enrollmentCount ?? 0,
   totalHours: course.estimatedHours || 0,
   category: course.categoryId?.toString() || 'dev',
   level: course.level.toLowerCase() as 'beginner' | 'intermediate' | 'advanced',

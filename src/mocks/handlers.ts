@@ -23,11 +23,18 @@ import {
   mockWishlist,
   mockCart,
   mockNotifications,
-  mockTADashboard,
-  mockSADashboard,
   mockTUDashboard,
-  mockCODashboard,
+  mockSADashboard,
+  mockCODashboardByPeriod,
+  mockTADashboardByPeriod,
 } from './data';
+import {
+  mockActivityLogs,
+  mockRecentActivities,
+  mockActivityStatsByDays,
+  searchActivityLogs,
+} from './data/analytics';
+import type { ActivityType } from '@/services/ta/analyticsService';
 
 // Helper to wrap response in ApiResponse format
 const apiResponse = <T>(data: T) => ({
@@ -59,6 +66,67 @@ const errorResponse = (message: string, code: string = 'ERROR') => ({
   data: null,
   error: { code, message },
 });
+
+// 과정별 운영 중인 차수 수를 계산하는 헬퍼
+const getRunningTimeCount = (courseId: number) => {
+  // course.id와 program.id가 일치하는 차수 중 RECRUITING 또는 ONGOING 상태인 것을 카운트
+  return mockCourseTimes.filter(
+    time => time.program?.id === courseId &&
+    (time.status === 'RECRUITING' || time.status === 'ONGOING')
+  ).length;
+};
+
+// 과정별 운영 기간을 계산하는 헬퍼 (가장 빠른 시작일 ~ 가장 늦은 종료일)
+const getCoursePeriod = (courseId: number) => {
+  const courseTimes = mockCourseTimes.filter(time => time.program?.id === courseId);
+  if (courseTimes.length === 0) {
+    return { startDate: null, endDate: null };
+  }
+
+  const startDates = courseTimes.map(t => t.classStartDate).filter(Boolean).sort();
+  const endDates = courseTimes.map(t => t.classEndDate).filter(Boolean).sort();
+
+  return {
+    startDate: startDates.length > 0 ? startDates[0] : null,
+    endDate: endDates.length > 0 ? endDates[endDates.length - 1] : null,
+  };
+};
+
+// Course 백엔드 응답 형식으로 변환하는 헬퍼
+const transformCourseToBackend = (course: (typeof mockCourses)[0]) => {
+  const period = getCoursePeriod(course.id);
+  return {
+    id: course.id, // CourseRegistrationResponse의 id 필드
+    courseId: course.id,
+    title: course.title,
+    description: course.description,
+    thumbnailUrl: course.thumbnailUrl,
+    level: course.level,
+    type: 'ONLINE',
+    estimatedHours: Math.floor(course.duration / 60),
+    categoryId: course.categoryId,
+    categoryName: course.categoryName, // 카테고리명 추가
+    status: 'REGISTERED', // 승인된 과정 상태
+    creatorId: course.instructorId, // 생성자 ID
+    creatorName: course.instructorName, // 생성자명 추가
+    ownerId: course.instructorId,
+    ownerName: course.instructorName,
+    ownerEmail: null,
+    snapshotId: null,
+    courseStartDate: period.startDate, // 운영 시작일
+    courseEndDate: period.endDate, // 운영 종료일
+    timeCount: getRunningTimeCount(course.id), // 운영 중인 차수 수 추가
+    tags: [],
+    createdAt: course.createdAt,
+    updatedAt: course.createdAt,
+    // Mock 추가 필드 (프론트엔드에서 활용)
+    rating: course.rating,
+    reviewCount: course.reviewCount,
+    enrollmentCount: course.enrollmentCount,
+    instructorId: course.instructorId,
+    instructorName: course.instructorName,
+  };
+};
 
 export const handlers = [
   // ========== Auth ==========
@@ -197,9 +265,37 @@ export const handlers = [
     return HttpResponse.json(apiResponse(mockCertificates));
   }),
 
-  http.get('/api/users', async () => {
+  http.get('/api/users', async ({ request }) => {
     await delay(30);
-    return HttpResponse.json(apiResponse(paginatedResponse(mockUsers.users)));
+    const url = new URL(request.url);
+    const roleParam = url.searchParams.get('role');
+    const statusParam = url.searchParams.get('status');
+    const keywordParam = url.searchParams.get('keyword');
+    const page = Number(url.searchParams.get('page') || '0');
+    const size = Number(url.searchParams.get('size') || '10');
+
+    let filteredUsers = [...mockUsers.users];
+
+    // 역할 필터
+    if (roleParam) {
+      filteredUsers = filteredUsers.filter(user => user.roles.includes(roleParam));
+    }
+
+    // 상태 필터
+    if (statusParam) {
+      filteredUsers = filteredUsers.filter(user => user.status === statusParam);
+    }
+
+    // 키워드 검색 (이름, 이메일)
+    if (keywordParam) {
+      const keyword = keywordParam.toLowerCase();
+      filteredUsers = filteredUsers.filter(user =>
+        user.name.toLowerCase().includes(keyword) ||
+        user.email.toLowerCase().includes(keyword)
+      );
+    }
+
+    return HttpResponse.json(apiResponse(paginatedResponse(filteredUsers, page, size)));
   }),
 
   http.get('/api/users/:id', async ({ params }) => {
@@ -249,6 +345,87 @@ export const handlers = [
     const userId = Number(params.id);
     const user = mockUserDetails[userId];
     return HttpResponse.json(apiResponse(user?.roles || ['USER']));
+  }),
+
+  // 사용자별 수강 통계 조회
+  http.get('/api/users/:id/enrollments/stats', async ({ params }) => {
+    await delay(30);
+    const userId = Number(params.id);
+
+    // 해당 사용자의 수강 이력 조회
+    const userEnrollments = mockEnrollments.filter(e => e.userId === userId);
+
+    const totalEnrollments = userEnrollments.length;
+    const completedCount = userEnrollments.filter(e => e.status === 'COMPLETED').length;
+    const inProgressCount = userEnrollments.filter(e => e.status === 'ENROLLED').length;
+    const droppedCount = userEnrollments.filter(e => e.status === 'DROPPED').length;
+    const failedCount = userEnrollments.filter(e => e.status === 'FAILED').length;
+
+    const completionRate = totalEnrollments > 0
+      ? Math.round((completedCount / totalEnrollments) * 100)
+      : 0;
+
+    const enrollmentsWithProgress = userEnrollments.filter(e => e.progressPercent !== undefined);
+    const averageProgress = enrollmentsWithProgress.length > 0
+      ? Math.round(enrollmentsWithProgress.reduce((sum, e) => sum + (e.progressPercent || 0), 0) / enrollmentsWithProgress.length)
+      : 0;
+
+    const enrollmentsWithScore = userEnrollments.filter(e => e.score !== null && e.score !== undefined);
+    const averageScore = enrollmentsWithScore.length > 0
+      ? Math.round(enrollmentsWithScore.reduce((sum, e) => sum + (e.score || 0), 0) / enrollmentsWithScore.length)
+      : 0;
+
+    return HttpResponse.json(apiResponse({
+      userId,
+      totalEnrollments,
+      completedCount,
+      inProgressCount,
+      droppedCount,
+      failedCount,
+      completionRate,
+      averageScore,
+      averageProgress,
+    }));
+  }),
+
+  // 사용자별 수강 이력 조회
+  http.get('/api/users/:id/enrollments', async ({ params, request }) => {
+    await delay(50);
+    const userId = Number(params.id);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+    const status = url.searchParams.get('status') || '';
+
+    let userEnrollments = mockEnrollments.filter(e => e.userId === userId);
+
+    // 상태 필터링
+    if (status) {
+      userEnrollments = userEnrollments.filter(e => e.status === status);
+    }
+
+    const totalElements = userEnrollments.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const start = page * size;
+    const paged = userEnrollments.slice(start, start + size);
+
+    // 과정 정보 추가
+    const content = paged.map(e => {
+      const courseTime = mockCourseTimes.find(ct => ct.id === e.courseTimeId);
+      return {
+        ...e,
+        courseTitle: courseTime?.program?.title || `Course ${e.courseTimeId}`,
+        courseTimeName: courseTime?.title || `차수 ${e.courseTimeId}`,
+      };
+    });
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements,
+      totalPages,
+      size,
+      number: page,
+    }));
   }),
 
   // Update user
@@ -587,26 +764,415 @@ export const handlers = [
   }),
 
   // ========== Courses ==========
-  http.get('/api/courses', async () => {
+  http.get('/api/courses', async ({ request }) => {
     await delay(50);
-    return HttpResponse.json(apiResponse(paginatedResponse(mockCourses)));
+    const url = new URL(request.url);
+    const keyword = url.searchParams.get('keyword');
+    const categoryId = url.searchParams.get('categoryId');
+    const level = url.searchParams.get('level');
+    const type = url.searchParams.get('type');
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+
+    // 필터링
+    let filteredCourses = [...mockCourses];
+
+    // 키워드 검색 (제목, 설명, 생성자명)
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      filteredCourses = filteredCourses.filter(course =>
+        course.title.toLowerCase().includes(lowerKeyword) ||
+        course.description?.toLowerCase().includes(lowerKeyword) ||
+        course.instructorName?.toLowerCase().includes(lowerKeyword)
+      );
+    }
+
+    // 카테고리 필터
+    if (categoryId) {
+      filteredCourses = filteredCourses.filter(course =>
+        course.categoryId === Number(categoryId)
+      );
+    }
+
+    // 레벨 필터
+    if (level) {
+      filteredCourses = filteredCourses.filter(course =>
+        course.level === level
+      );
+    }
+
+    // 타입 필터 (현재 mock 데이터에는 type이 없으므로 ONLINE으로 가정)
+    if (type && type !== 'ONLINE') {
+      filteredCourses = []; // ONLINE이 아닌 타입은 빈 배열
+    }
+
+    const transformedCourses = filteredCourses.map(transformCourseToBackend);
+    return HttpResponse.json(apiResponse(paginatedResponse(transformedCourses, page, size)));
   }),
 
   http.get('/api/courses/my', async () => {
     await delay(30);
-    return HttpResponse.json(apiResponse(paginatedResponse(mockCourses.slice(0, 3))));
+    const transformedCourses = mockCourses.slice(0, 3).map(transformCourseToBackend);
+    return HttpResponse.json(apiResponse(paginatedResponse(transformedCourses)));
   }),
 
   http.get('/api/courses/:id', async ({ params }) => {
     await delay(30);
     const course = mockCourses.find(c => c.id === Number(params.id));
-    return HttpResponse.json(apiResponse(course || mockCourses[0]));
+    const baseCourse = course || mockCourses[0];
+    return HttpResponse.json(apiResponse({
+      ...transformCourseToBackend(baseCourse),
+      items: [],
+      itemCount: baseCourse.totalItems || 0,
+      startDate: null,
+      endDate: null,
+    }));
+  }),
+
+  // 과정 커리큘럼 계층 구조 조회
+  http.get('/api/courses/:courseId/items/hierarchy', async ({ params }) => {
+    await delay(30);
+    const courseId = Number(params.courseId);
+
+    // 과정별 커리큘럼 데이터
+    const curriculumMap: Record<number, Array<{
+      itemId: number;
+      itemName: string;
+      depth: number;
+      learningObjectId: number | null;
+      isFolder: boolean;
+      displayName: string | null;
+      description: string | null;
+      children: Array<{
+        itemId: number;
+        itemName: string;
+        depth: number;
+        learningObjectId: number | null;
+        isFolder: boolean;
+        displayName: string | null;
+        description: string | null;
+        children: never[];
+      }>;
+    }>> = {
+      // React 기초부터 실전까지
+      1: [
+        {
+          itemId: 101,
+          itemName: '1. React 기초',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'React 기초',
+          description: 'React의 기본 개념을 학습합니다.',
+          children: [
+            { itemId: 111, itemName: 'React란 무엇인가?', depth: 1, learningObjectId: 1001, isFolder: false, displayName: null, description: 'React 프레임워크 소개', children: [] },
+            { itemId: 112, itemName: 'JSX 문법 이해하기', depth: 1, learningObjectId: 1002, isFolder: false, displayName: null, description: 'JSX 기본 문법 학습', children: [] },
+            { itemId: 113, itemName: '컴포넌트의 이해', depth: 1, learningObjectId: 1003, isFolder: false, displayName: null, description: '함수형 컴포넌트와 클래스 컴포넌트', children: [] },
+          ],
+        },
+        {
+          itemId: 102,
+          itemName: '2. React Hooks',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'React Hooks',
+          description: 'React Hooks를 활용한 상태 관리',
+          children: [
+            { itemId: 121, itemName: 'useState 훅', depth: 1, learningObjectId: 1004, isFolder: false, displayName: null, description: '상태 관리의 기초', children: [] },
+            { itemId: 122, itemName: 'useEffect 훅', depth: 1, learningObjectId: 1005, isFolder: false, displayName: null, description: '사이드 이펙트 처리', children: [] },
+            { itemId: 123, itemName: 'Custom Hooks 만들기', depth: 1, learningObjectId: 1006, isFolder: false, displayName: null, description: '재사용 가능한 로직 분리', children: [] },
+          ],
+        },
+        {
+          itemId: 103,
+          itemName: '3. 실전 프로젝트',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '실전 프로젝트',
+          description: '배운 내용을 활용한 프로젝트',
+          children: [
+            { itemId: 131, itemName: 'Todo 앱 만들기', depth: 1, learningObjectId: 1007, isFolder: false, displayName: null, description: 'CRUD 기능 구현', children: [] },
+            { itemId: 132, itemName: '날씨 앱 만들기', depth: 1, learningObjectId: 1008, isFolder: false, displayName: null, description: 'API 연동 실습', children: [] },
+          ],
+        },
+      ],
+      // TypeScript 마스터 클래스
+      2: [
+        {
+          itemId: 201,
+          itemName: '1. TypeScript 기초',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'TypeScript 기초',
+          description: 'TypeScript의 기본 개념',
+          children: [
+            { itemId: 211, itemName: '타입 시스템 이해', depth: 1, learningObjectId: 2001, isFolder: false, displayName: null, description: '기본 타입과 타입 추론', children: [] },
+            { itemId: 212, itemName: '인터페이스와 타입', depth: 1, learningObjectId: 2002, isFolder: false, displayName: null, description: '인터페이스 정의와 활용', children: [] },
+          ],
+        },
+        {
+          itemId: 202,
+          itemName: '2. 고급 타입',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '고급 타입',
+          description: 'TypeScript 고급 기능',
+          children: [
+            { itemId: 221, itemName: '제네릭 활용', depth: 1, learningObjectId: 2003, isFolder: false, displayName: null, description: '재사용 가능한 타입 정의', children: [] },
+            { itemId: 222, itemName: '유틸리티 타입', depth: 1, learningObjectId: 2004, isFolder: false, displayName: null, description: 'Partial, Pick, Omit 등', children: [] },
+            { itemId: 223, itemName: '조건부 타입', depth: 1, learningObjectId: 2005, isFolder: false, displayName: null, description: '타입 레벨 프로그래밍', children: [] },
+          ],
+        },
+      ],
+      // AWS 클라우드 입문
+      3: [
+        {
+          itemId: 301,
+          itemName: '1. AWS 소개',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'AWS 소개',
+          description: 'AWS 클라우드 서비스 개요',
+          children: [
+            { itemId: 311, itemName: 'AWS란 무엇인가?', depth: 1, learningObjectId: 3001, isFolder: false, displayName: null, description: 'AWS 클라우드 소개', children: [] },
+            { itemId: 312, itemName: 'AWS 계정 생성', depth: 1, learningObjectId: 3002, isFolder: false, displayName: null, description: '계정 생성 및 설정', children: [] },
+          ],
+        },
+        {
+          itemId: 302,
+          itemName: '2. 핵심 서비스',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '핵심 서비스',
+          description: 'AWS 주요 서비스 학습',
+          children: [
+            { itemId: 321, itemName: 'EC2 인스턴스', depth: 1, learningObjectId: 3003, isFolder: false, displayName: null, description: '가상 서버 운영', children: [] },
+            { itemId: 322, itemName: 'S3 스토리지', depth: 1, learningObjectId: 3004, isFolder: false, displayName: null, description: '객체 스토리지 활용', children: [] },
+            { itemId: 323, itemName: 'RDS 데이터베이스', depth: 1, learningObjectId: 3005, isFolder: false, displayName: null, description: '관계형 DB 서비스', children: [] },
+          ],
+        },
+      ],
+      // Python 데이터 분석
+      4: [
+        {
+          itemId: 401,
+          itemName: '1. Python 기초',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'Python 기초',
+          description: '데이터 분석을 위한 Python',
+          children: [
+            { itemId: 411, itemName: 'Python 환경 설정', depth: 1, learningObjectId: 4001, isFolder: false, displayName: null, description: 'Anaconda 설치', children: [] },
+            { itemId: 412, itemName: '기본 문법 복습', depth: 1, learningObjectId: 4002, isFolder: false, displayName: null, description: 'Python 기본 문법', children: [] },
+          ],
+        },
+        {
+          itemId: 402,
+          itemName: '2. 데이터 분석 라이브러리',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '데이터 분석 라이브러리',
+          description: 'pandas, numpy 활용',
+          children: [
+            { itemId: 421, itemName: 'NumPy 기초', depth: 1, learningObjectId: 4003, isFolder: false, displayName: null, description: '배열 연산', children: [] },
+            { itemId: 422, itemName: 'Pandas DataFrame', depth: 1, learningObjectId: 4004, isFolder: false, displayName: null, description: '데이터 조작', children: [] },
+            { itemId: 423, itemName: '데이터 시각화', depth: 1, learningObjectId: 4005, isFolder: false, displayName: null, description: 'Matplotlib, Seaborn', children: [] },
+          ],
+        },
+      ],
+      // ========== 삼성 러닝센터 과정 ==========
+      // 삼성 리더십 과정
+      101: [
+        {
+          itemId: 10101,
+          itemName: '1. 리더십 기초',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '리더십 기초',
+          description: '리더십의 기본 개념과 원칙',
+          children: [
+            { itemId: 10111, itemName: '리더십이란 무엇인가?', depth: 1, learningObjectId: 101001, isFolder: false, displayName: null, description: '리더십 개념 이해', children: [] },
+            { itemId: 10112, itemName: '삼성 리더십 원칙', depth: 1, learningObjectId: 101002, isFolder: false, displayName: null, description: '삼성의 핵심 가치', children: [] },
+            { itemId: 10113, itemName: '셀프 리더십', depth: 1, learningObjectId: 101003, isFolder: false, displayName: null, description: '자기 관리의 중요성', children: [] },
+          ],
+        },
+        {
+          itemId: 10102,
+          itemName: '2. 팀 리더십',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '팀 리더십',
+          description: '효과적인 팀 이끌기',
+          children: [
+            { itemId: 10121, itemName: '팀 빌딩', depth: 1, learningObjectId: 101004, isFolder: false, displayName: null, description: '효과적인 팀 구성', children: [] },
+            { itemId: 10122, itemName: '동기 부여', depth: 1, learningObjectId: 101005, isFolder: false, displayName: null, description: '팀원 동기 부여 전략', children: [] },
+            { itemId: 10123, itemName: '갈등 관리', depth: 1, learningObjectId: 101006, isFolder: false, displayName: null, description: '팀 내 갈등 해결', children: [] },
+          ],
+        },
+      ],
+      // 디지털 트랜스포메이션 기초
+      102: [
+        {
+          itemId: 10201,
+          itemName: '1. DX 개요',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'DX 개요',
+          description: '디지털 전환의 이해',
+          children: [
+            { itemId: 10211, itemName: 'DX란 무엇인가?', depth: 1, learningObjectId: 102001, isFolder: false, displayName: null, description: '디지털 전환 개념', children: [] },
+            { itemId: 10212, itemName: 'DX 성공 사례', depth: 1, learningObjectId: 102002, isFolder: false, displayName: null, description: '글로벌 DX 사례 분석', children: [] },
+          ],
+        },
+        {
+          itemId: 10202,
+          itemName: '2. DX 전략',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'DX 전략',
+          description: '디지털 전환 전략 수립',
+          children: [
+            { itemId: 10221, itemName: 'DX 로드맵', depth: 1, learningObjectId: 102003, isFolder: false, displayName: null, description: '전환 로드맵 설계', children: [] },
+            { itemId: 10222, itemName: '조직 변화 관리', depth: 1, learningObjectId: 102004, isFolder: false, displayName: null, description: '변화 관리 전략', children: [] },
+            { itemId: 10223, itemName: 'DX 기술 트렌드', depth: 1, learningObjectId: 102005, isFolder: false, displayName: null, description: 'AI, 클라우드, 데이터', children: [] },
+          ],
+        },
+      ],
+      // 반도체 공정 이해
+      103: [
+        {
+          itemId: 10301,
+          itemName: '1. 반도체 기초',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '반도체 기초',
+          description: '반도체의 기본 원리',
+          children: [
+            { itemId: 10311, itemName: '반도체란?', depth: 1, learningObjectId: 103001, isFolder: false, displayName: null, description: '반도체 기본 개념', children: [] },
+            { itemId: 10312, itemName: '반도체 종류', depth: 1, learningObjectId: 103002, isFolder: false, displayName: null, description: '메모리, 비메모리', children: [] },
+            { itemId: 10313, itemName: '반도체 산업 동향', depth: 1, learningObjectId: 103003, isFolder: false, displayName: null, description: '글로벌 시장 분석', children: [] },
+          ],
+        },
+        {
+          itemId: 10302,
+          itemName: '2. 반도체 공정',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '반도체 공정',
+          description: '제조 공정 이해',
+          children: [
+            { itemId: 10321, itemName: '웨이퍼 제조', depth: 1, learningObjectId: 103004, isFolder: false, displayName: null, description: '웨이퍼 생산 과정', children: [] },
+            { itemId: 10322, itemName: '포토리소그래피', depth: 1, learningObjectId: 103005, isFolder: false, displayName: null, description: '노광 공정', children: [] },
+            { itemId: 10323, itemName: '에칭과 증착', depth: 1, learningObjectId: 103006, isFolder: false, displayName: null, description: '식각 및 증착 공정', children: [] },
+            { itemId: 10324, itemName: '패키징', depth: 1, learningObjectId: 103007, isFolder: false, displayName: null, description: '후공정 이해', children: [] },
+          ],
+        },
+      ],
+      // 글로벌 비즈니스 커뮤니케이션
+      104: [
+        {
+          itemId: 10401,
+          itemName: '1. 비즈니스 영어',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '비즈니스 영어',
+          description: '업무용 영어 커뮤니케이션',
+          children: [
+            { itemId: 10411, itemName: '이메일 작성법', depth: 1, learningObjectId: 104001, isFolder: false, displayName: null, description: '효과적인 영문 이메일', children: [] },
+            { itemId: 10412, itemName: '회의 영어', depth: 1, learningObjectId: 104002, isFolder: false, displayName: null, description: '미팅 진행 표현', children: [] },
+          ],
+        },
+        {
+          itemId: 10402,
+          itemName: '2. 프레젠테이션',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '프레젠테이션',
+          description: '효과적인 발표 기술',
+          children: [
+            { itemId: 10421, itemName: '발표 구조화', depth: 1, learningObjectId: 104003, isFolder: false, displayName: null, description: '논리적 발표 구성', children: [] },
+            { itemId: 10422, itemName: '시각 자료 활용', depth: 1, learningObjectId: 104004, isFolder: false, displayName: null, description: '효과적인 슬라이드', children: [] },
+            { itemId: 10423, itemName: 'Q&A 대응', depth: 1, learningObjectId: 104005, isFolder: false, displayName: null, description: '질의응답 전략', children: [] },
+          ],
+        },
+      ],
+    };
+
+    const curriculum = curriculumMap[courseId] || [];
+    return HttpResponse.json(apiResponse(curriculum));
   }),
 
   // ========== Course Times ==========
-  http.get('/api/times', async () => {
+  http.get('/api/times', async ({ request }) => {
     await delay(50);
-    return HttpResponse.json(apiResponse(paginatedResponse(mockCourseTimes)));
+    const url = new URL(request.url);
+    const courseIdParam = url.searchParams.get('courseId');
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+    const keyword = url.searchParams.get('keyword') || '';
+    const status = url.searchParams.get('status') || '';
+
+    // courseId가 제공된 경우 해당 과정의 차수만 필터링
+    let filteredTimes = mockCourseTimes;
+    if (courseIdParam) {
+      const courseId = Number(courseIdParam);
+      filteredTimes = filteredTimes.filter(time => time.program?.id === courseId);
+    }
+
+    // 키워드 검색 (차수명, 과정명으로 검색)
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      filteredTimes = filteredTimes.filter(time =>
+        time.title.toLowerCase().includes(lowerKeyword) ||
+        (time.program?.title && time.program.title.toLowerCase().includes(lowerKeyword))
+      );
+    }
+
+    // 상태 필터
+    if (status) {
+      filteredTimes = filteredTimes.filter(time => time.status === status);
+    }
+
+    // CourseTimeResponse 형식으로 변환 (courseTitle, instructors 변환)
+    const transformedTimes = filteredTimes.map(time => ({
+      ...time,
+      courseTitle: time.program?.title ?? null,
+      instructors: time.instructors?.map(instructor => ({
+        ...instructor,
+        userName: instructor.name,
+        status: 'ACTIVE' as const,
+      })) ?? [],
+    }));
+
+    // 페이지네이션 처리
+    const totalElements = transformedTimes.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const start = page * size;
+    const content = transformedTimes.slice(start, start + size);
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements,
+      totalPages,
+      size,
+      number: page,
+    }));
   }),
 
   http.get('/api/times/:id', async ({ params }) => {
@@ -618,16 +1184,47 @@ export const handlers = [
         { status: 404 }
       );
     }
-    // BackendCourseTimeResponse 형식으로 반환
+    // CourseTimeResponse 형식으로 반환 (상세 페이지용)
     return HttpResponse.json(apiResponse({
       id: time.id,
       title: time.title,
+      status: time.status,
       programId: time.program?.id ?? null,
       programName: time.program?.title ?? null,
+      courseId: time.program?.id ?? null,
+      courseTitle: time.program?.title ?? null,
+      courseThumbnailUrl: time.program?.thumbnailUrl ?? null,
+      courseDescription: time.program?.description ?? null,
+      courseCategory: time.program?.categoryName ?? null,
+      courseDifficulty: time.program?.level ?? null,
+      deliveryType: time.deliveryType,
+      enrollmentMethod: time.enrollmentMethod,
+      locationInfo: null,
+      capacity: time.capacity,
+      currentEnrollment: time.currentEnrollment,
+      availableSeats: time.availableSeats,
+      price: time.price,
+      isFree: time.isFree,
+      enrollStartDate: time.enrollStartDate,
+      enrollEndDate: time.enrollEndDate,
       classStartDate: time.classStartDate,
       classEndDate: time.classEndDate,
-      snapshotId: time.id, // mock에서는 id를 사용
-      courseTitle: time.program?.title ?? null,
+      durationType: 'FIXED',
+      durationDays: null,
+      allowLateEnrollment: false,
+      minProgressForCompletion: 80,
+      recurringSchedule: null,
+      instructors: time.instructors?.map(instructor => ({
+        id: instructor.id,
+        userName: instructor.name,
+        userEmail: `instructor${instructor.id}@demo.com`,
+        role: instructor.role,
+        status: 'ACTIVE',
+        profileImageUrl: instructor.profileImageUrl,
+      })) ?? [],
+      snapshotId: time.id,
+      createdAt: '2026-01-15T09:00:00',
+      description: null,
     }));
   }),
 
@@ -848,6 +1445,664 @@ export const handlers = [
     return HttpResponse.json(apiResponse({ success: true }));
   }),
 
+  // ========== Course Community (강의별 커뮤니티) ==========
+  // 강의별 커뮤니티 게시글 목록
+  http.get('/api/times/:timeId/community/posts', async ({ params, request }) => {
+    await delay(50);
+    const timeId = Number(params.timeId);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const pageSize = Number(url.searchParams.get('pageSize')) || 10;
+
+    // 강의별 커뮤니티 게시글 데이터
+    const communityPostsMap: Record<number, Array<{
+      id: number;
+      courseTimeId: number;
+      type: 'question' | 'discussion' | 'tip' | 'review' | 'announcement';
+      title: string;
+      content: string;
+      excerpt: string;
+      author: { id: number; name: string; avatar: string | null };
+      category: string;
+      tags: string[];
+      viewCount: number;
+      likeCount: number;
+      commentCount: number;
+      isLiked: boolean;
+      isPinned: boolean;
+      isSolved?: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }>> = {
+      // React 기초부터 실전까지 - 2024년 1기
+      1: [
+        { id: 1001, courseTimeId: 1, type: 'question', title: 'useEffect 무한 루프 해결 방법', content: 'useEffect 안에서 state를 업데이트하면 무한 루프가 발생하는데 어떻게 해결할 수 있나요?', excerpt: 'useEffect 안에서 state를 업데이트하면 무한 루프가 발생하는데...', author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['React', 'useEffect'], viewCount: 156, likeCount: 12, commentCount: 8, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T10:00:00', updatedAt: '2026-01-30T10:00:00' },
+        { id: 1002, courseTimeId: 1, type: 'tip', title: 'useState 초기값 설정 팁', content: '복잡한 초기값은 함수로 전달하면 성능이 개선됩니다. useState(() => computeInitialValue())', excerpt: '복잡한 초기값은 함수로 전달하면 성능이 개선됩니다...', author: { id: 16, name: '이학습', avatar: null }, category: 'tip', tags: ['React', 'useState', '성능'], viewCount: 234, likeCount: 45, commentCount: 5, isLiked: true, isPinned: true, createdAt: '2026-01-29T14:30:00', updatedAt: '2026-01-29T14:30:00' },
+        { id: 1003, courseTimeId: 1, type: 'discussion', title: '5주차 과제 같이 풀어보실 분!', content: '5주차 과제가 어려운데 같이 화면공유하면서 풀어보실 분 계신가요?', excerpt: '5주차 과제가 어려운데 같이 화면공유하면서 풀어보실 분...', author: { id: 17, name: '박코딩', avatar: null }, category: 'study', tags: ['스터디', '과제'], viewCount: 89, likeCount: 8, commentCount: 12, isLiked: false, isPinned: false, createdAt: '2026-01-28T09:00:00', updatedAt: '2026-01-28T09:00:00' },
+        { id: 1004, courseTimeId: 1, type: 'question', title: 'props drilling 해결법이 궁금합니다', content: '컴포넌트 depth가 깊어지면서 props를 계속 내려주는 게 불편한데 좋은 방법이 있을까요?', excerpt: '컴포넌트 depth가 깊어지면서 props를 계속 내려주는 게...', author: { id: 18, name: '최프론트', avatar: null }, category: 'qna', tags: ['React', 'Context', 'props'], viewCount: 198, likeCount: 23, commentCount: 15, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-27T16:00:00', updatedAt: '2026-01-27T16:00:00' },
+        { id: 1005, courseTimeId: 1, type: 'tip', title: 'React DevTools 활용 꿀팁', content: 'React DevTools의 Profiler 기능을 활용하면 렌더링 성능을 쉽게 분석할 수 있습니다.', excerpt: 'React DevTools의 Profiler 기능을 활용하면...', author: { id: 14, name: '정학습', avatar: null }, category: 'tip', tags: ['React', 'DevTools', '디버깅'], viewCount: 312, likeCount: 56, commentCount: 7, isLiked: true, isPinned: false, createdAt: '2026-01-26T11:00:00', updatedAt: '2026-01-26T11:00:00' },
+      ],
+      // TypeScript 마스터 클래스 - 2024년 1기
+      2: [
+        { id: 2001, courseTimeId: 2, type: 'question', title: '제네릭 타입 추론이 안되는 경우', content: '함수에서 제네릭을 사용했는데 타입이 자동으로 추론이 안됩니다. 어떻게 해야 하나요?', excerpt: '함수에서 제네릭을 사용했는데 타입이 자동으로 추론이...', author: { id: 21, name: '타입왕', avatar: null }, category: 'qna', tags: ['TypeScript', '제네릭'], viewCount: 145, likeCount: 18, commentCount: 11, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T11:00:00', updatedAt: '2026-01-30T11:00:00' },
+        { id: 2002, courseTimeId: 2, type: 'tip', title: 'Utility Types 정리', content: 'Partial, Required, Pick, Omit 등 자주 사용하는 유틸리티 타입을 정리해봤습니다.', excerpt: 'Partial, Required, Pick, Omit 등 자주 사용하는...', author: { id: 22, name: '스크립터', avatar: null }, category: 'tip', tags: ['TypeScript', 'UtilityTypes'], viewCount: 456, likeCount: 89, commentCount: 14, isLiked: true, isPinned: true, createdAt: '2026-01-29T09:30:00', updatedAt: '2026-01-29T09:30:00' },
+        { id: 2003, courseTimeId: 2, type: 'discussion', title: 'any vs unknown 언제 사용해야 할까요?', content: 'any와 unknown의 차이는 알겠는데, 실무에서 unknown을 언제 사용해야 하는지 궁금합니다.', excerpt: 'any와 unknown의 차이는 알겠는데, 실무에서...', author: { id: 15, name: '김개발', avatar: null }, category: 'discussion', tags: ['TypeScript', 'any', 'unknown'], viewCount: 234, likeCount: 34, commentCount: 23, isLiked: false, isPinned: false, createdAt: '2026-01-28T14:00:00', updatedAt: '2026-01-28T14:00:00' },
+        { id: 2004, courseTimeId: 2, type: 'question', title: 'tsconfig strict 모드 관련 질문', content: 'strict 모드를 켜면 에러가 너무 많이 나는데, 하나씩 켜는 게 좋을까요?', excerpt: 'strict 모드를 켜면 에러가 너무 많이 나는데...', author: { id: 23, name: '코드장인', avatar: null }, category: 'qna', tags: ['TypeScript', 'tsconfig'], viewCount: 167, likeCount: 21, commentCount: 9, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-27T10:00:00', updatedAt: '2026-01-27T10:00:00' },
+      ],
+      // AWS 클라우드 입문 - 2024년 2기
+      3: [
+        { id: 3001, courseTimeId: 3, type: 'question', title: 'EC2 인스턴스 SSH 접속 오류', content: 'EC2 인스턴스에 SSH 접속이 안되는데 보안그룹 설정은 맞는 것 같습니다. 확인해볼 부분이 있을까요?', excerpt: 'EC2 인스턴스에 SSH 접속이 안되는데 보안그룹 설정은...', author: { id: 24, name: '클라우드러버', avatar: null }, category: 'qna', tags: ['AWS', 'EC2', 'SSH'], viewCount: 189, likeCount: 15, commentCount: 12, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T09:00:00', updatedAt: '2026-01-30T09:00:00' },
+        { id: 3002, courseTimeId: 3, type: 'tip', title: 'AWS 프리티어 비용 절약 팁', content: '프리티어 사용 시 예상치 못한 비용이 발생하지 않도록 알람 설정하는 방법을 공유합니다.', excerpt: '프리티어 사용 시 예상치 못한 비용이 발생하지 않도록...', author: { id: 25, name: '서버리스맨', avatar: null }, category: 'tip', tags: ['AWS', '프리티어', '비용'], viewCount: 567, likeCount: 123, commentCount: 18, isLiked: true, isPinned: true, createdAt: '2026-01-29T15:00:00', updatedAt: '2026-01-29T15:00:00' },
+        { id: 3003, courseTimeId: 3, type: 'discussion', title: 'SAA 자격증 스터디 모집', content: 'AWS Solutions Architect Associate 자격증 준비하시는 분들 같이 스터디 하실래요?', excerpt: 'AWS Solutions Architect Associate 자격증 준비하시는 분들...', author: { id: 14, name: '정학습', avatar: null }, category: 'study', tags: ['AWS', '자격증', 'SAA'], viewCount: 234, likeCount: 45, commentCount: 28, isLiked: false, isPinned: false, createdAt: '2026-01-28T11:00:00', updatedAt: '2026-01-28T11:00:00' },
+        { id: 3004, courseTimeId: 3, type: 'question', title: 'S3 버킷 정책 설정 문의', content: '특정 IP에서만 S3 버킷에 접근하도록 설정하고 싶은데 버킷 정책 예시 있을까요?', excerpt: '특정 IP에서만 S3 버킷에 접근하도록 설정하고 싶은데...', author: { id: 26, name: '데브옵스초보', avatar: null }, category: 'qna', tags: ['AWS', 'S3', '보안'], viewCount: 145, likeCount: 12, commentCount: 7, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-27T14:30:00', updatedAt: '2026-01-27T14:30:00' },
+        { id: 3005, courseTimeId: 3, type: 'tip', title: 'Lambda 콜드 스타트 줄이는 방법', content: 'Provisioned Concurrency 외에 콜드 스타트를 줄이는 실용적인 방법들을 정리했습니다.', excerpt: 'Provisioned Concurrency 외에 콜드 스타트를 줄이는...', author: { id: 17, name: '박코딩', avatar: null }, category: 'tip', tags: ['AWS', 'Lambda', '성능'], viewCount: 378, likeCount: 67, commentCount: 11, isLiked: true, isPinned: false, createdAt: '2026-01-26T10:00:00', updatedAt: '2026-01-26T10:00:00' },
+      ],
+      // Python 데이터 분석 - 무료 체험반
+      4: [
+        { id: 4001, courseTimeId: 4, type: 'question', title: 'pandas DataFrame merge 관련 질문', content: 'left join과 inner join의 차이가 헷갈립니다. 예시와 함께 설명해주실 수 있나요?', excerpt: 'left join과 inner join의 차이가 헷갈립니다...', author: { id: 29, name: '데이터사이언티스트', avatar: null }, category: 'qna', tags: ['Python', 'pandas', 'merge'], viewCount: 123, likeCount: 8, commentCount: 6, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-29T10:00:00', updatedAt: '2026-01-29T10:00:00' },
+        { id: 4002, courseTimeId: 4, type: 'tip', title: 'matplotlib 한글 깨짐 해결법', content: 'matplotlib에서 한글이 깨질 때 폰트 설정하는 방법을 공유합니다.', excerpt: 'matplotlib에서 한글이 깨질 때 폰트 설정하는 방법을...', author: { id: 30, name: '분석초보', avatar: null }, category: 'tip', tags: ['Python', 'matplotlib', '한글'], viewCount: 345, likeCount: 56, commentCount: 9, isLiked: true, isPinned: true, createdAt: '2026-01-28T14:00:00', updatedAt: '2026-01-28T14:00:00' },
+        { id: 4003, courseTimeId: 4, type: 'discussion', title: '데이터 분석 실무에서 많이 쓰는 라이브러리', content: '실무에서 pandas, numpy 외에 어떤 라이브러리를 많이 사용하시나요?', excerpt: '실무에서 pandas, numpy 외에 어떤 라이브러리를...', author: { id: 31, name: '파이썬러버', avatar: null }, category: 'discussion', tags: ['Python', '라이브러리', '실무'], viewCount: 198, likeCount: 23, commentCount: 15, isLiked: false, isPinned: false, createdAt: '2026-01-27T09:00:00', updatedAt: '2026-01-27T09:00:00' },
+      ],
+      // Next.js 실전 프로젝트
+      5: [
+        { id: 5001, courseTimeId: 5, type: 'question', title: 'App Router에서 loading.tsx가 안보여요', content: 'loading.tsx 파일을 만들었는데 로딩 UI가 안보입니다. 뭐가 문제일까요?', excerpt: 'loading.tsx 파일을 만들었는데 로딩 UI가 안보입니다...', author: { id: 33, name: '풀스택지망', avatar: null }, category: 'qna', tags: ['Next.js', 'AppRouter', 'loading'], viewCount: 167, likeCount: 14, commentCount: 9, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T10:30:00', updatedAt: '2026-01-30T10:30:00' },
+        { id: 5002, courseTimeId: 5, type: 'tip', title: 'Server Actions 실전 패턴', content: 'Server Actions를 폼 처리에 활용하는 실전 패턴을 정리했습니다.', excerpt: 'Server Actions를 폼 처리에 활용하는 실전 패턴을...', author: { id: 34, name: '리액트마스터', avatar: null }, category: 'tip', tags: ['Next.js', 'ServerActions', '폼'], viewCount: 456, likeCount: 89, commentCount: 12, isLiked: true, isPinned: true, createdAt: '2026-01-29T11:00:00', updatedAt: '2026-01-29T11:00:00' },
+        { id: 5003, courseTimeId: 5, type: 'discussion', title: 'Vercel vs AWS 어디에 배포하시나요?', content: '개인 프로젝트 배포할 때 Vercel과 AWS 중 어디를 선호하시나요?', excerpt: '개인 프로젝트 배포할 때 Vercel과 AWS 중 어디를...', author: { id: 35, name: '프론트엔드장인', avatar: null }, category: 'discussion', tags: ['Next.js', '배포', 'Vercel', 'AWS'], viewCount: 289, likeCount: 34, commentCount: 28, isLiked: false, isPinned: false, createdAt: '2026-01-28T15:00:00', updatedAt: '2026-01-28T15:00:00' },
+        { id: 5004, courseTimeId: 5, type: 'question', title: 'ISR revalidate 시간 설정 기준', content: 'ISR에서 revalidate 시간을 어떤 기준으로 설정하시나요? 콘텐츠 유형별로 권장 값이 있을까요?', excerpt: 'ISR에서 revalidate 시간을 어떤 기준으로 설정하시나요...', author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['Next.js', 'ISR', '캐싱'], viewCount: 198, likeCount: 21, commentCount: 11, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-27T10:00:00', updatedAt: '2026-01-27T10:00:00' },
+        { id: 5005, courseTimeId: 5, type: 'tip', title: 'Next.js + Prisma 연동 가이드', content: 'Next.js 프로젝트에서 Prisma ORM을 설정하고 사용하는 방법을 정리했습니다.', excerpt: 'Next.js 프로젝트에서 Prisma ORM을 설정하고 사용하는...', author: { id: 36, name: '웹개발러', avatar: null }, category: 'tip', tags: ['Next.js', 'Prisma', 'ORM'], viewCount: 345, likeCount: 67, commentCount: 8, isLiked: true, isPinned: false, createdAt: '2026-01-26T14:00:00', updatedAt: '2026-01-26T14:00:00' },
+      ],
+    };
+
+    const posts = communityPostsMap[timeId] || [
+      { id: 9001, courseTimeId: timeId, type: 'question' as const, title: '강의 관련 질문입니다', content: '이 부분이 이해가 안되는데 설명 부탁드립니다.', excerpt: '이 부분이 이해가 안되는데...', author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['질문'], viewCount: 45, likeCount: 3, commentCount: 2, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-28T10:00:00', updatedAt: '2026-01-28T10:00:00' },
+      { id: 9002, courseTimeId: timeId, type: 'tip' as const, title: '강의 수강 팁 공유', content: '이렇게 하면 더 효율적으로 학습할 수 있어요.', excerpt: '이렇게 하면 더 효율적으로 학습할 수...', author: { id: 16, name: '이학습', avatar: null }, category: 'tip', tags: ['팁'], viewCount: 78, likeCount: 12, commentCount: 4, isLiked: true, isPinned: false, createdAt: '2026-01-27T14:00:00', updatedAt: '2026-01-27T14:00:00' },
+    ];
+
+    const startIndex = page * pageSize;
+    const paginatedPosts = posts.slice(startIndex, startIndex + pageSize);
+
+    return HttpResponse.json(apiResponse({
+      posts: paginatedPosts,
+      totalCount: posts.length,
+      page,
+      pageSize,
+      totalPages: Math.ceil(posts.length / pageSize),
+    }));
+  }),
+
+  // 강의별 커뮤니티 게시글 상세
+  http.get('/api/times/:timeId/community/posts/:postId', async ({ params }) => {
+    await delay(30);
+    const postId = Number(params.postId);
+    const timeId = Number(params.timeId);
+
+    // 게시글 상세 데이터 (목록과 동일한 데이터 + 전체 content)
+    const postDetailMap: Record<number, {
+      id: number;
+      courseTimeId: number;
+      type: 'question' | 'discussion' | 'tip' | 'review' | 'announcement';
+      title: string;
+      content: string;
+      author: { id: number; name: string; avatar: string | null };
+      category: string;
+      tags: string[];
+      viewCount: number;
+      likeCount: number;
+      commentCount: number;
+      isLiked: boolean;
+      isPinned: boolean;
+      isSolved?: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }> = {
+      // React 기초 강의 커뮤니티
+      1001: { id: 1001, courseTimeId: 1, type: 'question', title: 'useEffect 무한 루프 해결 방법', content: `useEffect 안에서 state를 업데이트하면 무한 루프가 발생하는데 어떻게 해결할 수 있나요?
+
+예를 들어 아래 코드에서 무한 루프가 발생합니다:
+
+\`\`\`jsx
+const [count, setCount] = useState(0);
+
+useEffect(() => {
+  setCount(count + 1);
+}, [count]);
+\`\`\`
+
+의존성 배열을 비우면 되긴 하는데, 그러면 count 값을 제대로 사용할 수 없을 것 같아서요.
+어떻게 해결해야 할까요?`, author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['React', 'useEffect'], viewCount: 156, likeCount: 12, commentCount: 8, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T10:00:00', updatedAt: '2026-01-30T10:00:00' },
+      1002: { id: 1002, courseTimeId: 1, type: 'tip', title: 'useState 초기값 설정 팁', content: `복잡한 초기값은 함수로 전달하면 성능이 개선됩니다!
+
+## 일반적인 방식 (매 렌더링마다 실행)
+\`\`\`jsx
+const [items, setItems] = useState(expensiveComputation());
+\`\`\`
+
+## 권장 방식 (최초 렌더링에만 실행)
+\`\`\`jsx
+const [items, setItems] = useState(() => expensiveComputation());
+\`\`\`
+
+이렇게 하면 초기 렌더링 시에만 함수가 실행되어 성능이 개선됩니다.
+특히 localStorage에서 데이터를 읽어올 때 유용해요!`, author: { id: 16, name: '이학습', avatar: null }, category: 'tip', tags: ['React', 'useState', '성능'], viewCount: 234, likeCount: 45, commentCount: 5, isLiked: true, isPinned: true, createdAt: '2026-01-29T14:30:00', updatedAt: '2026-01-29T14:30:00' },
+      1003: { id: 1003, courseTimeId: 1, type: 'discussion', title: '5주차 과제 같이 풀어보실 분!', content: `5주차 과제가 어려운데 같이 화면공유하면서 풀어보실 분 계신가요?
+
+## 과제 내용
+- Todo 앱 만들기
+- CRUD 기능 구현
+- localStorage 연동
+
+## 스터디 정보
+- 일시: 이번 주 토요일 오후 2시
+- 방식: 디스코드 화면공유
+- 인원: 3~4명
+
+관심 있으시면 댓글 남겨주세요!`, author: { id: 17, name: '박코딩', avatar: null }, category: 'study', tags: ['스터디', '과제'], viewCount: 89, likeCount: 8, commentCount: 12, isLiked: false, isPinned: false, createdAt: '2026-01-28T09:00:00', updatedAt: '2026-01-28T09:00:00' },
+      1004: { id: 1004, courseTimeId: 1, type: 'question', title: 'props drilling 해결법이 궁금합니다', content: `컴포넌트 depth가 깊어지면서 props를 계속 내려주는 게 불편한데 좋은 방법이 있을까요?
+
+현재 구조가 이런 식입니다:
+App → Layout → Sidebar → Menu → MenuItem
+
+MenuItem에서 App의 state를 사용하려면 모든 중간 컴포넌트에 props를 전달해야 해서 코드가 지저분해지네요.
+
+Context API를 사용하면 된다고 들었는데, 언제 Context를 쓰고 언제 props를 써야 할지 기준이 궁금합니다.`, author: { id: 18, name: '최프론트', avatar: null }, category: 'qna', tags: ['React', 'Context', 'props'], viewCount: 198, likeCount: 23, commentCount: 15, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-27T16:00:00', updatedAt: '2026-01-27T16:00:00' },
+      1005: { id: 1005, courseTimeId: 1, type: 'tip', title: 'React DevTools 활용 꿀팁', content: `React DevTools의 Profiler 기능을 활용하면 렌더링 성능을 쉽게 분석할 수 있습니다!
+
+## Profiler 사용법
+1. React DevTools 설치
+2. Profiler 탭 선택
+3. Record 버튼 클릭
+4. 앱 조작
+5. Stop 버튼 클릭
+
+## 확인할 수 있는 정보
+- 각 컴포넌트의 렌더링 시간
+- 불필요한 리렌더링 발생 여부
+- 렌더링 원인 (props 변경, state 변경 등)
+
+특히 "Highlight updates when components render" 옵션을 켜면 어떤 컴포넌트가 리렌더링되는지 시각적으로 확인할 수 있어요!`, author: { id: 14, name: '정학습', avatar: null }, category: 'tip', tags: ['React', 'DevTools', '디버깅'], viewCount: 312, likeCount: 56, commentCount: 7, isLiked: true, isPinned: false, createdAt: '2026-01-26T11:00:00', updatedAt: '2026-01-26T11:00:00' },
+
+      // TypeScript 마스터 클래스 커뮤니티
+      2001: { id: 2001, courseTimeId: 2, type: 'question', title: '제네릭 타입 추론이 안되는 경우', content: `함수에서 제네릭을 사용했는데 타입이 자동으로 추론이 안됩니다.
+
+\`\`\`typescript
+function getValue<T>(obj: object, key: string): T {
+  return obj[key];
+}
+
+const result = getValue(user, 'name'); // result가 unknown으로 추론됨
+\`\`\`
+
+T가 자동으로 string으로 추론되길 원하는데, 어떻게 해야 하나요?`, author: { id: 21, name: '타입왕', avatar: null }, category: 'qna', tags: ['TypeScript', '제네릭'], viewCount: 145, likeCount: 18, commentCount: 11, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T11:00:00', updatedAt: '2026-01-30T11:00:00' },
+      2002: { id: 2002, courseTimeId: 2, type: 'tip', title: 'Utility Types 정리', content: `Partial, Required, Pick, Omit 등 자주 사용하는 유틸리티 타입을 정리해봤습니다.
+
+## Partial<T>
+모든 프로퍼티를 optional로 만듦
+\`\`\`typescript
+type PartialUser = Partial<User>; // { name?: string; age?: number; }
+\`\`\`
+
+## Required<T>
+모든 프로퍼티를 required로 만듦
+
+## Pick<T, K>
+특정 프로퍼티만 선택
+\`\`\`typescript
+type UserName = Pick<User, 'name'>; // { name: string; }
+\`\`\`
+
+## Omit<T, K>
+특정 프로퍼티 제외
+\`\`\`typescript
+type UserWithoutAge = Omit<User, 'age'>; // { name: string; }
+\`\`\`
+
+실무에서 정말 자주 사용하니 꼭 익혀두세요!`, author: { id: 22, name: '스크립터', avatar: null }, category: 'tip', tags: ['TypeScript', 'UtilityTypes'], viewCount: 456, likeCount: 89, commentCount: 14, isLiked: true, isPinned: true, createdAt: '2026-01-29T09:30:00', updatedAt: '2026-01-29T09:30:00' },
+      2003: { id: 2003, courseTimeId: 2, type: 'discussion', title: 'any vs unknown 언제 사용해야 할까요?', content: `any와 unknown의 차이는 알겠는데, 실무에서 unknown을 언제 사용해야 하는지 궁금합니다.
+
+## 제가 이해한 차이점
+- any: 타입 체크 완전 무시
+- unknown: 타입 체크는 하지만 사용 전 타입 좁히기 필요
+
+## 궁금한 점
+1. API 응답을 받을 때 unknown을 쓰면 매번 타입 가드를 해야 하는데, 번거롭지 않나요?
+2. 실무에서 unknown을 적극적으로 사용하시나요?
+3. any를 써야만 하는 상황이 있나요?
+
+여러분의 경험을 공유해주세요!`, author: { id: 15, name: '김개발', avatar: null }, category: 'discussion', tags: ['TypeScript', 'any', 'unknown'], viewCount: 234, likeCount: 34, commentCount: 23, isLiked: false, isPinned: false, createdAt: '2026-01-28T14:00:00', updatedAt: '2026-01-28T14:00:00' },
+      2004: { id: 2004, courseTimeId: 2, type: 'question', title: 'tsconfig strict 모드 관련 질문', content: `strict 모드를 켜면 에러가 너무 많이 나는데, 하나씩 켜는 게 좋을까요?
+
+현재 레거시 프로젝트에 TypeScript를 도입하려고 하는데요.
+strict: true로 설정하면 에러가 500개 넘게 나옵니다...
+
+점진적으로 마이그레이션하려면 어떤 순서로 옵션을 켜는 게 좋을까요?
+
+\`\`\`json
+{
+  "compilerOptions": {
+    "strict": false, // 일단 false로 시작
+    "noImplicitAny": true, // 이것부터?
+    "strictNullChecks": true, // 아니면 이것부터?
+  }
+}
+\`\`\``, author: { id: 23, name: '코드장인', avatar: null }, category: 'qna', tags: ['TypeScript', 'tsconfig'], viewCount: 167, likeCount: 21, commentCount: 9, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-27T10:00:00', updatedAt: '2026-01-27T10:00:00' },
+
+      // AWS 클라우드 입문 커뮤니티
+      3001: { id: 3001, courseTimeId: 3, type: 'question', title: 'EC2 인스턴스 SSH 접속 오류', content: `EC2 인스턴스에 SSH 접속이 안되는데 보안그룹 설정은 맞는 것 같습니다.
+
+## 현재 상황
+- 인바운드 규칙: SSH (22번 포트) - 0.0.0.0/0 허용
+- 키 페어: 다운로드 받은 .pem 파일 사용
+
+## 에러 메시지
+\`\`\`
+Permission denied (publickey).
+\`\`\`
+
+## 시도해본 것
+- 보안그룹 규칙 확인 ✓
+- 퍼블릭 IP 확인 ✓
+- 인스턴스 상태 running 확인 ✓
+
+혹시 확인해볼 부분이 더 있을까요?`, author: { id: 24, name: '클라우드러버', avatar: null }, category: 'qna', tags: ['AWS', 'EC2', 'SSH'], viewCount: 189, likeCount: 15, commentCount: 12, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T09:00:00', updatedAt: '2026-01-30T09:00:00' },
+      3002: { id: 3002, courseTimeId: 3, type: 'tip', title: 'AWS 프리티어 비용 절약 팁', content: `프리티어 사용 시 예상치 못한 비용이 발생하지 않도록 알람 설정하는 방법을 공유합니다!
+
+## 1. 예산 알림 설정
+AWS Budgets에서 월 예산을 $0으로 설정하고 알림을 받으세요.
+
+## 2. 프리티어 사용량 모니터링
+Billing Dashboard → Free Tier에서 사용량 확인
+
+## 3. 주의해야 할 서비스들
+- **EBS**: EC2 중지해도 스토리지 비용 발생!
+- **Elastic IP**: 사용 안 하면 비용 청구
+- **NAT Gateway**: 프리티어 아님, 시간당 과금
+- **RDS**: Multi-AZ 옵션 비활성화 확인
+
+## 4. 꿀팁
+실습 후 리소스는 꼭 삭제하세요. CloudFormation 사용하면 한번에 정리 가능!`, author: { id: 25, name: '서버리스맨', avatar: null }, category: 'tip', tags: ['AWS', '프리티어', '비용'], viewCount: 567, likeCount: 123, commentCount: 18, isLiked: true, isPinned: true, createdAt: '2026-01-29T15:00:00', updatedAt: '2026-01-29T15:00:00' },
+      3003: { id: 3003, courseTimeId: 3, type: 'discussion', title: 'SAA 자격증 스터디 모집', content: `AWS Solutions Architect Associate 자격증 준비하시는 분들 같이 스터디 하실래요?
+
+## 스터디 계획
+- 기간: 4주 (2월 한 달)
+- 방식: 주 2회 온라인 미팅
+- 교재: 강의 내용 + Examtopics
+
+## 진행 방식
+1. 각자 해당 주차 범위 공부
+2. 모의고사 풀이
+3. 오답 토론
+
+## 모집 인원
+5명 (현재 2명)
+
+관심 있으시면 댓글 남겨주세요!
+오픈채팅방 링크 공유드릴게요.`, author: { id: 14, name: '정학습', avatar: null }, category: 'study', tags: ['AWS', '자격증', 'SAA'], viewCount: 234, likeCount: 45, commentCount: 28, isLiked: false, isPinned: false, createdAt: '2026-01-28T11:00:00', updatedAt: '2026-01-28T11:00:00' },
+
+      // Python 데이터 분석 커뮤니티
+      4001: { id: 4001, courseTimeId: 4, type: 'question', title: 'pandas DataFrame merge 관련 질문', content: `left join과 inner join의 차이가 헷갈립니다.
+
+\`\`\`python
+df1 = pd.DataFrame({'key': ['A', 'B', 'C'], 'value1': [1, 2, 3]})
+df2 = pd.DataFrame({'key': ['A', 'B', 'D'], 'value2': [4, 5, 6]})
+
+# 이 두 가지의 차이가 뭔가요?
+pd.merge(df1, df2, on='key', how='left')
+pd.merge(df1, df2, on='key', how='inner')
+\`\`\`
+
+예시와 함께 설명해주실 수 있나요?`, author: { id: 29, name: '데이터사이언티스트', avatar: null }, category: 'qna', tags: ['Python', 'pandas', 'merge'], viewCount: 123, likeCount: 8, commentCount: 6, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-29T10:00:00', updatedAt: '2026-01-29T10:00:00' },
+      4002: { id: 4002, courseTimeId: 4, type: 'tip', title: 'matplotlib 한글 깨짐 해결법', content: `matplotlib에서 한글이 깨질 때 폰트 설정하는 방법을 공유합니다!
+
+## Windows
+\`\`\`python
+import matplotlib.pyplot as plt
+plt.rc('font', family='Malgun Gothic')
+plt.rcParams['axes.unicode_minus'] = False
+\`\`\`
+
+## Mac
+\`\`\`python
+plt.rc('font', family='AppleGothic')
+plt.rcParams['axes.unicode_minus'] = False
+\`\`\`
+
+## Colab
+\`\`\`python
+!apt-get install fonts-nanum
+plt.rc('font', family='NanumGothic')
+\`\`\`
+
+이 코드를 노트북 상단에 한 번만 실행하면 됩니다!`, author: { id: 30, name: '분석초보', avatar: null }, category: 'tip', tags: ['Python', 'matplotlib', '한글'], viewCount: 345, likeCount: 56, commentCount: 9, isLiked: true, isPinned: true, createdAt: '2026-01-28T14:00:00', updatedAt: '2026-01-28T14:00:00' },
+
+      // Next.js 실전 프로젝트 커뮤니티
+      5001: { id: 5001, courseTimeId: 5, type: 'question', title: 'App Router에서 loading.tsx가 안보여요', content: `loading.tsx 파일을 만들었는데 로딩 UI가 안보입니다.
+
+## 파일 구조
+\`\`\`
+app/
+  dashboard/
+    page.tsx
+    loading.tsx
+\`\`\`
+
+## loading.tsx
+\`\`\`tsx
+export default function Loading() {
+  return <div>로딩 중...</div>
+}
+\`\`\`
+
+page.tsx에서 데이터를 fetch하는데, loading.tsx가 표시되지 않고 바로 페이지가 나타납니다.
+뭐가 문제일까요?`, author: { id: 33, name: '풀스택지망', avatar: null }, category: 'qna', tags: ['Next.js', 'AppRouter', 'loading'], viewCount: 167, likeCount: 14, commentCount: 9, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-30T10:30:00', updatedAt: '2026-01-30T10:30:00' },
+      5002: { id: 5002, courseTimeId: 5, type: 'tip', title: 'Server Actions 실전 패턴', content: `Server Actions를 폼 처리에 활용하는 실전 패턴을 정리했습니다!
+
+## 기본 패턴
+\`\`\`tsx
+// actions.ts
+'use server'
+
+export async function createPost(formData: FormData) {
+  const title = formData.get('title');
+  // DB 저장 로직
+  revalidatePath('/posts');
+}
+\`\`\`
+
+## 폼 컴포넌트
+\`\`\`tsx
+export function PostForm() {
+  return (
+    <form action={createPost}>
+      <input name="title" />
+      <SubmitButton />
+    </form>
+  );
+}
+\`\`\`
+
+## useFormStatus 활용
+\`\`\`tsx
+'use client'
+import { useFormStatus } from 'react-dom';
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return <button disabled={pending}>
+    {pending ? '저장 중...' : '저장'}
+  </button>;
+}
+\`\`\`
+
+JavaScript 없이도 폼이 동작하니 접근성도 좋아요!`, author: { id: 34, name: '리액트마스터', avatar: null }, category: 'tip', tags: ['Next.js', 'ServerActions', '폼'], viewCount: 456, likeCount: 89, commentCount: 12, isLiked: true, isPinned: true, createdAt: '2026-01-29T11:00:00', updatedAt: '2026-01-29T11:00:00' },
+      5003: { id: 5003, courseTimeId: 5, type: 'discussion', title: 'Vercel vs AWS 어디에 배포하시나요?', content: `개인 프로젝트 배포할 때 Vercel과 AWS 중 어디를 선호하시나요?
+
+## Vercel 장점
+- Next.js와 완벽한 통합
+- 간편한 배포 (Git push만 하면 자동 배포)
+- 무료 티어가 넉넉함
+
+## AWS 장점
+- 더 많은 커스터마이징 가능
+- 다른 AWS 서비스와 연동 쉬움
+- 대규모 서비스에 적합
+
+여러분은 어떤 것을 선호하시나요? 이유도 함께 공유해주세요!`, author: { id: 35, name: '프론트엔드장인', avatar: null }, category: 'discussion', tags: ['Next.js', '배포', 'Vercel', 'AWS'], viewCount: 289, likeCount: 34, commentCount: 28, isLiked: false, isPinned: false, createdAt: '2026-01-28T15:00:00', updatedAt: '2026-01-28T15:00:00' },
+      5004: { id: 5004, courseTimeId: 5, type: 'question', title: 'ISR revalidate 시간 설정 기준', content: `ISR에서 revalidate 시간을 어떤 기준으로 설정하시나요?
+
+\`\`\`tsx
+export const revalidate = 60; // 60초마다 재생성
+\`\`\`
+
+콘텐츠 유형별로 권장 값이 있을까요?
+
+예를 들어:
+- 블로그 포스트: ?
+- 상품 목록: ?
+- 사용자 프로필: ?
+
+실무에서 어떻게 설정하시는지 궁금합니다.`, author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['Next.js', 'ISR', '캐싱'], viewCount: 198, likeCount: 21, commentCount: 11, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-27T10:00:00', updatedAt: '2026-01-27T10:00:00' },
+      5005: { id: 5005, courseTimeId: 5, type: 'tip', title: 'Next.js + Prisma 연동 가이드', content: `Next.js 프로젝트에서 Prisma ORM을 설정하고 사용하는 방법을 정리했습니다!
+
+## 1. 설치
+\`\`\`bash
+npm install prisma @prisma/client
+npx prisma init
+\`\`\`
+
+## 2. 스키마 정의 (prisma/schema.prisma)
+\`\`\`prisma
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String?
+  createdAt DateTime @default(now())
+}
+\`\`\`
+
+## 3. DB 마이그레이션
+\`\`\`bash
+npx prisma migrate dev --name init
+\`\`\`
+
+## 4. Prisma Client 사용
+\`\`\`tsx
+import { PrismaClient } from '@prisma/client'
+const prisma = new PrismaClient()
+
+// Server Component에서 사용
+const posts = await prisma.post.findMany()
+\`\`\`
+
+Server Components와 함께 사용하면 정말 편해요!`, author: { id: 36, name: '웹개발러', avatar: null }, category: 'tip', tags: ['Next.js', 'Prisma', 'ORM'], viewCount: 345, likeCount: 67, commentCount: 8, isLiked: true, isPinned: false, createdAt: '2026-01-26T14:00:00', updatedAt: '2026-01-26T14:00:00' },
+
+      // AWS 클라우드 입문 - 추가 게시글
+      3004: { id: 3004, courseTimeId: 3, type: 'question', title: 'S3 버킷 정책 설정 문의', content: `특정 IP에서만 S3 버킷에 접근하도록 설정하고 싶은데 버킷 정책 예시 있을까요?
+
+현재 상황:
+- S3 버킷에 정적 파일들을 업로드해놨습니다
+- 회사 IP에서만 접근 가능하게 하고 싶어요
+
+\`\`\`json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::my-bucket/*",
+      "Condition": {
+        "IpAddress": {
+          "aws:SourceIp": "123.456.789.0/24"
+        }
+      }
+    }
+  ]
+}
+\`\`\`
+
+이런 식으로 설정하면 되는 건가요?`, author: { id: 26, name: '데브옵스초보', avatar: null }, category: 'qna', tags: ['AWS', 'S3', '보안'], viewCount: 145, likeCount: 12, commentCount: 7, isLiked: false, isPinned: false, isSolved: true, createdAt: '2026-01-27T14:30:00', updatedAt: '2026-01-27T14:30:00' },
+      3005: { id: 3005, courseTimeId: 3, type: 'tip', title: 'Lambda 콜드 스타트 줄이는 방법', content: `Provisioned Concurrency 외에 콜드 스타트를 줄이는 실용적인 방법들을 정리했습니다!
+
+## 1. 패키지 크기 줄이기
+- 불필요한 dependencies 제거
+- Lambda Layer 활용
+- webpack/esbuild로 번들링
+
+## 2. 런타임 선택
+- Python, Node.js가 Java보다 콜드 스타트가 빠름
+- ARM64 (Graviton2) 사용하면 x86보다 빠름
+
+## 3. 메모리 늘리기
+- 메모리를 늘리면 CPU도 함께 올라감
+- 128MB → 512MB로만 올려도 체감됨
+
+## 4. VPC 피하기 (가능하다면)
+- VPC 연결 시 ENI 생성으로 시간 소요
+- 꼭 필요한 경우가 아니면 VPC 밖에서 실행
+
+실제로 패키지 크기만 줄여도 2-3초 → 0.5초로 개선된 경험이 있어요!`, author: { id: 17, name: '박코딩', avatar: null }, category: 'tip', tags: ['AWS', 'Lambda', '성능'], viewCount: 378, likeCount: 67, commentCount: 11, isLiked: true, isPinned: false, createdAt: '2026-01-26T10:00:00', updatedAt: '2026-01-26T10:00:00' },
+
+      // Python 데이터 분석 - 추가 게시글
+      4003: { id: 4003, courseTimeId: 4, type: 'discussion', title: '데이터 분석 실무에서 많이 쓰는 라이브러리', content: `실무에서 pandas, numpy 외에 어떤 라이브러리를 많이 사용하시나요?
+
+제가 알고 있는 것들:
+- **시각화**: matplotlib, seaborn, plotly
+- **머신러닝**: scikit-learn, xgboost
+- **딥러닝**: tensorflow, pytorch
+
+실무에서 많이 쓰이는데 저는 모르는 라이브러리가 있을 것 같아서요.
+추천해주시면 공부해보려고 합니다!
+
+특히 데이터 전처리나 EDA 할 때 편리한 라이브러리가 있으면 알려주세요.`, author: { id: 31, name: '파이썬러버', avatar: null }, category: 'discussion', tags: ['Python', '라이브러리', '실무'], viewCount: 198, likeCount: 23, commentCount: 15, isLiked: false, isPinned: false, createdAt: '2026-01-27T09:00:00', updatedAt: '2026-01-27T09:00:00' },
+
+      // 기본 게시글 (timeId가 매칭되지 않는 강의용)
+      9001: { id: 9001, courseTimeId: 0, type: 'question', title: '강의 관련 질문입니다', content: `이 부분이 이해가 안되는데 설명 부탁드립니다.
+
+강의 3장에서 나온 내용 중에서 잘 모르겠는 부분이 있어요.
+
+혹시 비슷한 고민 하신 분 계신가요?
+같이 토론하면서 이해해보면 좋겠습니다.`, author: { id: 15, name: '김개발', avatar: null }, category: 'qna', tags: ['질문'], viewCount: 45, likeCount: 3, commentCount: 2, isLiked: false, isPinned: false, isSolved: false, createdAt: '2026-01-28T10:00:00', updatedAt: '2026-01-28T10:00:00' },
+      9002: { id: 9002, courseTimeId: 0, type: 'tip', title: '강의 수강 팁 공유', content: `이렇게 하면 더 효율적으로 학습할 수 있어요!
+
+## 제가 사용하는 학습 방법
+1. 강의를 1.5배속으로 먼저 쭉 듣기
+2. 이해 안 되는 부분만 다시 정상 속도로 듣기
+3. 실습은 직접 코드 치면서 따라하기
+4. 배운 내용 노션에 정리하기
+
+이 방법으로 학습 시간을 많이 줄일 수 있었어요!`, author: { id: 16, name: '이학습', avatar: null }, category: 'tip', tags: ['팁'], viewCount: 78, likeCount: 12, commentCount: 4, isLiked: true, isPinned: false, createdAt: '2026-01-27T14:00:00', updatedAt: '2026-01-27T14:00:00' },
+    };
+
+    const post = postDetailMap[postId];
+
+    if (post) {
+      return HttpResponse.json(apiResponse({ ...post, comments: [] }));
+    }
+
+    // 찾지 못한 경우 기본 데이터 반환
+    return HttpResponse.json(apiResponse({
+      id: postId,
+      courseTimeId: timeId,
+      type: 'question' as const,
+      title: '강의 내용 관련 질문입니다',
+      content: `안녕하세요, 강의를 듣다가 궁금한 점이 생겨서 질문 드립니다.
+
+이번 강의에서 배운 내용 중에 이해가 잘 안 되는 부분이 있는데요.
+
+혹시 비슷한 경험이 있으신 분 계신가요?
+같이 이야기 나눠보면 좋겠습니다.
+
+감사합니다!`,
+      author: { id: 15, name: '김개발', avatar: null },
+      category: 'qna',
+      tags: ['질문', '강의'],
+      viewCount: 100,
+      likeCount: 10,
+      commentCount: 5,
+      isLiked: false,
+      isPinned: false,
+      isSolved: false,
+      createdAt: '2026-01-28T10:00:00',
+      updatedAt: '2026-01-28T10:00:00',
+      comments: [],
+    }));
+  }),
+
+  // 강의별 커뮤니티 게시글 작성
+  http.post('/api/times/:timeId/community/posts', async ({ params, request }) => {
+    await delay(50);
+    const body = await request.json() as { type: string; title: string; content: string; category: string; tags?: string[] };
+    const newPost = {
+      id: Date.now(),
+      courseTimeId: Number(params.timeId),
+      type: body.type,
+      title: body.title,
+      content: body.content,
+      excerpt: body.content.slice(0, 100),
+      author: { id: 14, name: '정학습', avatar: null },
+      category: body.category,
+      tags: body.tags || [],
+      viewCount: 0,
+      likeCount: 0,
+      commentCount: 0,
+      isLiked: false,
+      isPinned: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return HttpResponse.json(apiResponse(newPost), { status: 201 });
+  }),
+
+  // 강의별 커뮤니티 게시글 좋아요
+  http.post('/api/times/:timeId/community/posts/:postId/like', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ success: true }));
+  }),
+
+  http.delete('/api/times/:timeId/community/posts/:postId/like', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ success: true }));
+  }),
+
+  // 강의별 커뮤니티 댓글 목록
+  http.get('/api/times/:timeId/community/posts/:postId/comments', async ({ params }) => {
+    await delay(30);
+    const postId = Number(params.postId);
+
+    // postId 기반으로 다른 댓글 데이터 반환
+    const commentsMap: Record<number, Array<{
+      id: number;
+      postId: number;
+      author: { id: number; name: string; avatar: string | null };
+      content: string;
+      likeCount: number;
+      createdAt: string;
+      isEdited: boolean;
+    }>> = {
+      1001: [
+        { id: 1, postId: 1001, author: { id: 16, name: '이학습', avatar: null }, content: '의존성 배열에 state를 넣지 않으면 해결됩니다!', likeCount: 5, createdAt: '2026-01-30T11:00:00', isEdited: false },
+        { id: 2, postId: 1001, author: { id: 14, name: '정학습', avatar: null }, content: '또는 useCallback으로 함수를 메모이제이션 하는 방법도 있어요.', likeCount: 3, createdAt: '2026-01-30T12:00:00', isEdited: false },
+      ],
+      1002: [
+        { id: 3, postId: 1002, author: { id: 15, name: '김개발', avatar: null }, content: '좋은 팁 감사합니다! 바로 적용해봐야겠어요.', likeCount: 2, createdAt: '2026-01-29T15:00:00', isEdited: false },
+      ],
+      2001: [
+        { id: 4, postId: 2001, author: { id: 22, name: '스크립터', avatar: null }, content: 'extends 키워드로 타입 제약을 걸어보세요.', likeCount: 8, createdAt: '2026-01-30T12:00:00', isEdited: false },
+      ],
+      3001: [
+        { id: 5, postId: 3001, author: { id: 25, name: '서버리스맨', avatar: null }, content: '키 페어 권한(chmod 400)을 확인해보세요!', likeCount: 6, createdAt: '2026-01-30T10:00:00', isEdited: false },
+        { id: 6, postId: 3001, author: { id: 24, name: '클라우드러버', avatar: null }, content: '해결했습니다! 권한 문제였네요. 감사합니다!', likeCount: 2, createdAt: '2026-01-30T11:00:00', isEdited: false },
+      ],
+    };
+
+    const comments = commentsMap[postId] || [];
+
+    return HttpResponse.json(apiResponse({
+      comments,
+      totalCount: comments.length,
+      page: 0,
+      pageSize: 20,
+      totalPages: 1,
+    }));
+  }),
+
+  // 강의별 커뮤니티 댓글 작성
+  http.post('/api/times/:timeId/community/posts/:postId/comments', async ({ params, request }) => {
+    await delay(50);
+    const body = await request.json() as { content: string };
+    const newComment = {
+      id: Date.now(),
+      postId: Number(params.postId),
+      author: { id: 14, name: '정학습', avatar: null },
+      content: body.content,
+      likeCount: 0,
+      createdAt: new Date().toISOString(),
+      isEdited: false,
+    };
+    return HttpResponse.json(apiResponse(newComment), { status: 201 });
+  }),
+
   // ========== Enrollments ==========
   http.get('/api/enrollments', async () => {
     await delay(30);
@@ -868,6 +2123,84 @@ export const handlers = [
   http.post('/api/enrollments', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse({ id: 100, message: '수강 신청이 완료되었습니다.' }));
+  }),
+
+  // 차수별 수강생 목록 조회 (관리자용)
+  http.get('/api/times/:id/enrollments', async ({ params, request }) => {
+    await delay(50);
+    const courseTimeId = Number(params.id);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+    const keyword = url.searchParams.get('keyword') || '';
+    const status = url.searchParams.get('status') || '';
+
+    // 해당 차수의 수강생 필터링
+    let filtered = mockEnrollments.filter(e => e.courseTimeId === courseTimeId);
+
+    // 키워드 검색 (유저 이름, 이메일)
+    if (keyword) {
+      filtered = filtered.filter(e => {
+        const user = mockUsers.users.find((u: { id: number }) => u.id === e.userId);
+        if (!user) return false;
+        return user.name.toLowerCase().includes(keyword.toLowerCase()) ||
+               user.email.toLowerCase().includes(keyword.toLowerCase());
+      });
+    }
+
+    // 상태 필터
+    if (status) {
+      filtered = filtered.filter(e => e.status === status);
+    }
+
+    // 페이지네이션
+    const start = page * size;
+    const paged = filtered.slice(start, start + size);
+
+    // 유저 정보 조인
+    const content = paged.map(e => {
+      const user = mockUsers.users.find((u: { id: number }) => u.id === e.userId);
+      return {
+        ...e,
+        userName: user?.name || `User ${e.userId}`,
+        userEmail: user?.email || `user${e.userId}@example.com`,
+      };
+    });
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements: filtered.length,
+      totalPages: Math.ceil(filtered.length / size),
+      size,
+      number: page,
+    }));
+  }),
+
+  // 차수별 수강 통계 조회
+  http.get('/api/times/:id/enrollments/stats', async ({ params }) => {
+    await delay(30);
+    const courseTimeId = Number(params.id);
+    const enrollments = mockEnrollments.filter(e => e.courseTimeId === courseTimeId);
+
+    const totalEnrollments = enrollments.length;
+    const enrolledCount = enrollments.filter(e => e.status === 'ENROLLED').length;
+    const completedCount = enrollments.filter(e => e.status === 'COMPLETED').length;
+    const droppedCount = enrollments.filter(e => e.status === 'DROPPED').length;
+    const pendingCount = enrollments.filter(e => e.status === 'PENDING').length;
+    const completionRate = totalEnrollments > 0 ? (completedCount / totalEnrollments) * 100 : 0;
+    const avgProgress = enrollments.length > 0
+      ? enrollments.reduce((sum, e) => sum + (e.progressPercent || 0), 0) / enrollments.length
+      : 0;
+
+    return HttpResponse.json(apiResponse({
+      totalEnrollments,
+      enrolledCount,
+      completedCount,
+      droppedCount,
+      pendingCount,
+      completionRate,
+      averageProgress: avgProgress,
+    }));
   }),
 
   // 차수별 수강 신청 (CourseTime enrollment)
@@ -1075,14 +2408,23 @@ export const handlers = [
 
   // ========== Dashboard ==========
   // TA Dashboard (TENANT_ADMIN)
-  http.get('/api/admin/dashboard/kpi', async () => {
+  http.get('/api/admin/dashboard/kpi', async ({ request }) => {
     await delay(50);
+    const url = new URL(request.url);
+    const periodParam = url.searchParams.get('period');
+    // 프론트엔드 period ('7d', '30d', 없음=all) → mock 데이터 키 매핑
+    const periodMap: Record<string, keyof typeof mockTADashboardByPeriod> = {
+      '7d': 'WEEK',
+      '30d': 'MONTH',
+    };
+    const periodKey = periodParam ? (periodMap[periodParam] || 'ALL') : 'ALL';
+    const dashboardData = mockTADashboardByPeriod[periodKey];
     // 새 구조 응답: userStats, programStats, enrollmentStats, dailyTrend
     return HttpResponse.json(apiResponse({
-      userStats: mockTADashboard.userStats,
-      programStats: mockTADashboard.programStats,
-      enrollmentStats: mockTADashboard.enrollmentStats,
-      dailyTrend: mockTADashboard.dailyTrend,
+      userStats: dashboardData.userStats,
+      programStats: dashboardData.programStats,
+      enrollmentStats: dashboardData.enrollmentStats,
+      dailyTrend: dashboardData.dailyTrend,
     }));
   }),
 
@@ -1092,10 +2434,22 @@ export const handlers = [
     return HttpResponse.json(apiResponse(mockSADashboard));
   }),
 
-  // CO Dashboard (OPERATOR)
-  http.get('/api/operator/dashboard/tasks', async () => {
+  // CO Dashboard (OPERATOR) - 기간별 필터링 지원
+  http.get('/api/operator/dashboard/tasks', async ({ request }) => {
     await delay(50);
-    return HttpResponse.json(apiResponse(mockCODashboard));
+    const url = new URL(request.url);
+    const periodParam = url.searchParams.get('period');
+
+    // 프론트엔드 파라미터를 mock 데이터 키로 매핑
+    const periodMap: Record<string, keyof typeof mockCODashboardByPeriod> = {
+      '7d': 'WEEK',
+      '30d': 'MONTH',
+    };
+
+    const periodKey = periodParam ? (periodMap[periodParam] || 'ALL') : 'ALL';
+    const dashboardData = mockCODashboardByPeriod[periodKey];
+
+    return HttpResponse.json(apiResponse(dashboardData));
   }),
 
   // ========== TU Dashboard ==========
@@ -1110,28 +2464,227 @@ export const handlers = [
   }),
 
   // ========== Analytics ==========
-  http.get('/api/admin/analytics/logs', async () => {
+  // 활동 로그 목록 조회
+  http.get('/api/admin/analytics/logs', async ({ request }) => {
     await delay(30);
-    return HttpResponse.json(apiResponse(paginatedResponse([])));
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '50', 10);
+    const type = url.searchParams.get('type') || undefined;
+
+    let filteredLogs = [...mockActivityLogs];
+    if (type) {
+      filteredLogs = filteredLogs.filter(log => log.activityType === type);
+    }
+
+    return HttpResponse.json(apiResponse(paginatedResponse(filteredLogs, page, size)));
   }),
 
-  http.get('/api/admin/analytics/stats', async () => {
+  // 활동 로그 검색
+  http.get('/api/admin/analytics/logs/search', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '50', 10);
+    const userId = url.searchParams.get('userId');
+    const type = url.searchParams.get('type') || undefined;
+    const startDate = url.searchParams.get('startDate') || undefined;
+    const endDate = url.searchParams.get('endDate') || undefined;
+    const keyword = url.searchParams.get('keyword') || undefined;
+
+    const filteredLogs = searchActivityLogs({
+      userId: userId ? parseInt(userId, 10) : undefined,
+      type: type as ActivityType | undefined,
+      startDate,
+      endDate,
+      keyword,
+    });
+
+    return HttpResponse.json(apiResponse(paginatedResponse(filteredLogs, page, size)));
+  }),
+
+  // 활동 통계 조회
+  http.get('/api/admin/analytics/stats', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const days = parseInt(url.searchParams.get('days') || '30', 10);
+
+    // 1, 7, 30일 기준 통계 반환
+    const stats = mockActivityStatsByDays[days] || mockActivityStatsByDays[30];
+    return HttpResponse.json(apiResponse(stats));
+  }),
+
+  // 최근 활동 조회
+  http.get('/api/admin/analytics/recent', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse(mockRecentActivities));
+  }),
+
+  // 특정 사용자 활동 로그 조회
+  http.get('/api/admin/analytics/logs/users/:userId', async ({ params, request }) => {
+    await delay(30);
+    const userId = Number(params.userId);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '20', 10);
+
+    const userLogs = mockActivityLogs.filter(log => log.userId === userId);
+    return HttpResponse.json(apiResponse(paginatedResponse(userLogs, page, size)));
+  }),
+
+  // 활동 유형 목록 조회
+  http.get('/api/admin/analytics/types', async () => {
+    await delay(30);
+    const activityTypes = [
+      { type: 'LOGIN', description: '로그인' },
+      { type: 'LOGOUT', description: '로그아웃' },
+      { type: 'LOGIN_FAILED', description: '로그인 실패' },
+      { type: 'PASSWORD_CHANGE', description: '비밀번호 변경' },
+      { type: 'USER_CREATE', description: '사용자 생성' },
+      { type: 'USER_UPDATE', description: '사용자 수정' },
+      { type: 'USER_DELETE', description: '사용자 삭제' },
+      { type: 'ROLE_CHANGE', description: '역할 변경' },
+      { type: 'COURSE_VIEW', description: '강좌 조회' },
+      { type: 'COURSE_CREATE', description: '강좌 생성' },
+      { type: 'COURSE_UPDATE', description: '강좌 수정' },
+      { type: 'COURSE_DELETE', description: '강좌 삭제' },
+      { type: 'ENROLLMENT_CREATE', description: '수강 신청' },
+      { type: 'ENROLLMENT_COMPLETE', description: '수강 완료' },
+      { type: 'ENROLLMENT_DROP', description: '수강 취소' },
+      { type: 'CONTENT_VIEW', description: '콘텐츠 조회' },
+      { type: 'CONTENT_COMPLETE', description: '콘텐츠 완료' },
+    ];
+    return HttpResponse.json(apiResponse(activityTypes));
+  }),
+
+  // 활동 로그 내보내기 (CSV)
+  http.get('/api/admin/analytics/logs/export', async ({ request }) => {
+    await delay(100);
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('userId');
+    const type = url.searchParams.get('type') || undefined;
+    const startDate = url.searchParams.get('startDate') || undefined;
+    const endDate = url.searchParams.get('endDate') || undefined;
+
+    const filteredLogs = searchActivityLogs({
+      userId: userId ? parseInt(userId, 10) : undefined,
+      type: type as ActivityType | undefined,
+      startDate,
+      endDate,
+    });
+
+    // CSV 생성
+    const headers = ['ID', '사용자', '이메일', '활동 유형', '설명', 'IP 주소', '생성일시'];
+    const rows = filteredLogs.map(log => [
+      log.id,
+      log.userName || '',
+      log.userEmail || '',
+      log.activityTypeLabel,
+      log.description,
+      log.ipAddress || '',
+      log.createdAt,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+
+    return new HttpResponse(csvContent, {
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename="activity_logs_${Date.now()}.csv"`,
+      },
+    });
+  }),
+
+  // 리포트 유형 목록
+  http.get('/api/admin/analytics/reports/types', async () => {
+    await delay(30);
+    const reportTypes = [
+      { type: 'USERS', name: '사용자 현황', description: '등록된 사용자 목록 및 상태' },
+      { type: 'COURSES', name: '강좌 현황', description: '강좌 목록 및 수강 통계' },
+      { type: 'LEARNING', name: '학습 진도', description: '사용자별 학습 진행 현황' },
+      { type: 'COMPLETION', name: '수료 현황', description: '강좌별 수료자 통계' },
+      { type: 'ENGAGEMENT', name: '참여도 분석', description: '사용자 활동 및 참여 지표' },
+    ];
+    return HttpResponse.json(apiResponse(reportTypes));
+  }),
+
+  // 리포트 내보내기
+  http.get('/api/admin/analytics/reports/export', async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const reportType = url.searchParams.get('reportType') || 'USERS';
+    const format = url.searchParams.get('format') || 'CSV';
+
+    let content: string;
+    let mimeType: string;
+    let extension: string;
+
+    if (format === 'CSV') {
+      mimeType = 'text/csv';
+      extension = 'csv';
+      // CSV 데이터 생성
+      if (reportType === 'USERS') {
+        content = 'ID,이름,이메일,역할,상태,가입일\n1,김관리,admin@mzcacademy.com,TENANT_ADMIN,ACTIVE,2024-01-15\n2,이운영,operator@mzcacademy.com,TENANT_OPERATOR,ACTIVE,2024-02-01';
+      } else if (reportType === 'COURSES') {
+        content = 'ID,강좌명,카테고리,수강생,완료율\n1,AWS Solutions Architect,클라우드,45,78%\n2,Kubernetes 기초,DevOps,32,65%';
+      } else if (reportType === 'LEARNING') {
+        content = 'ID,사용자,강좌,진도율,최근학습일\n1,박수강,AWS Solutions Architect,85%,2025-01-28\n2,정학습,Kubernetes 기초,60%,2025-01-27';
+      } else if (reportType === 'COMPLETION') {
+        content = 'ID,사용자,강좌,수료일,점수\n1,박수강,AWS Solutions Architect,2025-01-25,92\n2,최개발,Kubernetes 기초,2025-01-20,88';
+      } else {
+        content = 'ID,사용자,총수강,완료,진행중,평균진도율\n1,박수강,5,3,2,75%\n2,정학습,4,2,2,60%';
+      }
+    } else if (format === 'XLSX') {
+      mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      extension = 'xlsx';
+      // 간단한 XLSX 데이터 (실제로는 라이브러리 필요)
+      content = 'XLSX_MOCK_DATA';
+    } else {
+      mimeType = 'application/pdf';
+      extension = 'pdf';
+      content = 'PDF_MOCK_DATA';
+    }
+
+    return new HttpResponse(content, {
+      headers: {
+        'Content-Type': mimeType,
+        'Content-Disposition': `attachment; filename="${reportType.toLowerCase()}_report.${extension}"`,
+      },
+    });
+  }),
+
+  // 내보내기 이력 조회
+  http.get('/api/admin/analytics/reports/history', async ({ request }) => {
+    await delay(30);
+    const url = new URL(request.url);
+    const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+
+    const history = [
+      { id: 1, reportType: '사용자 현황', format: 'XLSX', period: 'MONTH', status: 'COMPLETED', createdAt: '2025-01-28 14:30:00', fileSize: '24KB' },
+      { id: 2, reportType: '학습 진도', format: 'CSV', period: 'WEEK', status: 'COMPLETED', createdAt: '2025-01-27 10:15:00', fileSize: '12KB' },
+      { id: 3, reportType: '수료 현황', format: 'PDF', period: 'MONTH', status: 'COMPLETED', createdAt: '2025-01-26 16:45:00', fileSize: '156KB' },
+      { id: 4, reportType: '참여도 분석', format: 'XLSX', period: 'QUARTER', status: 'COMPLETED', createdAt: '2025-01-25 09:20:00', fileSize: '48KB' },
+      { id: 5, reportType: '강좌 현황', format: 'CSV', period: 'ALL', status: 'COMPLETED', createdAt: '2025-01-24 11:00:00', fileSize: '8KB' },
+    ].slice(0, limit);
+
+    return HttpResponse.json(apiResponse(history));
+  }),
+
+  // 내보내기 통계
+  http.get('/api/admin/analytics/reports/stats', async () => {
     await delay(30);
     return HttpResponse.json(apiResponse({
-      totalViews: 12345,
-      uniqueUsers: 567,
-      averageSessionTime: 1234,
+      monthlyCount: 23,
+      totalSize: '1.2MB',
+      mostPopular: '사용자 현황',
     }));
   }),
 
-  http.get('/api/admin/analytics/recent', async () => {
+  http.get('/api/sa/analytics/logs', async ({ request }) => {
     await delay(30);
-    return HttpResponse.json(apiResponse([]));
-  }),
-
-  http.get('/api/sa/analytics/logs', async () => {
-    await delay(30);
-    return HttpResponse.json(apiResponse(paginatedResponse([])));
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
+    const size = parseInt(url.searchParams.get('size') || '50', 10);
+    return HttpResponse.json(apiResponse(paginatedResponse(mockActivityLogs, page, size)));
   }),
 
   // ========== Wishlist & Cart ==========
@@ -1946,30 +3499,80 @@ export const handlers = [
   // ========== Departments ==========
   http.get('/api/departments', async () => {
     await delay(30);
-    return HttpResponse.json(apiResponse([
-      { id: 1, name: '개발팀', code: 'DEV', memberCount: 15 },
-      { id: 2, name: '마케팅팀', code: 'MKT', memberCount: 8 },
-      { id: 3, name: '영업팀', code: 'SALES', memberCount: 12 },
-      { id: 4, name: '인사팀', code: 'HR', memberCount: 5 },
-    ]));
+    const departments = [
+      { id: 1, name: '경영지원팀', code: 'MGT', description: '경영 지원 업무', parentId: null, parentName: null, managerId: 10, managerName: '김테넌트', sortOrder: 1, isActive: true, memberCount: 3, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+      { id: 2, name: '교육운영팀', code: 'EDU_OPS', description: '교육 과정 운영', parentId: null, parentName: null, managerId: 11, managerName: '이운영', sortOrder: 2, isActive: true, memberCount: 4, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+      { id: 3, name: '교육개발팀', code: 'EDU_DEV', description: '교육 콘텐츠 개발', parentId: null, parentName: null, managerId: 12, managerName: '박강사', sortOrder: 3, isActive: true, memberCount: 5, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+      { id: 4, name: '개발팀', code: 'DEV', description: '시스템 개발', parentId: null, parentName: null, managerId: 17, managerName: '박코딩', sortOrder: 4, isActive: true, memberCount: 6, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+      { id: 5, name: '마케팅팀', code: 'MKT', description: '마케팅 및 홍보', parentId: null, parentName: null, managerId: 39, managerName: '남마케터', sortOrder: 5, isActive: true, memberCount: 3, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+    ];
+    return HttpResponse.json(apiResponse(departments));
   }),
 
   http.get('/api/departments/tree', async () => {
     await delay(30);
-    return HttpResponse.json(apiResponse([
+    const departmentTree = [
       {
-        id: 1,
-        name: '개발팀',
-        code: 'DEV',
+        id: 1, name: '경영지원팀', code: 'MGT', description: '경영 지원 업무', parentId: null, parentName: null, managerId: 10, managerName: '김테넌트', sortOrder: 1, isActive: true, memberCount: 3, createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00',
+        children: [],
+      },
+      {
+        id: 2, name: '교육운영팀', code: 'EDU_OPS', description: '교육 과정 운영', parentId: null, parentName: null, managerId: 11, managerName: '이운영', sortOrder: 2, isActive: true, memberCount: 4, createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00',
+        children: [],
+      },
+      {
+        id: 3, name: '교육개발팀', code: 'EDU_DEV', description: '교육 콘텐츠 개발', parentId: null, parentName: null, managerId: 12, managerName: '박강사', sortOrder: 3, isActive: true, memberCount: 5, createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00',
+        children: [],
+      },
+      {
+        id: 4, name: '개발팀', code: 'DEV', description: '시스템 개발', parentId: null, parentName: null, managerId: 17, managerName: '박코딩', sortOrder: 4, isActive: true, memberCount: 6, createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00',
         children: [
-          { id: 5, name: '프론트엔드팀', code: 'FE', children: [] },
-          { id: 6, name: '백엔드팀', code: 'BE', children: [] },
+          { id: 6, name: '프론트엔드팀', code: 'FE', description: '프론트엔드 개발', parentId: 4, parentName: '개발팀', managerId: null, managerName: null, sortOrder: 1, isActive: true, memberCount: 3, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
+          { id: 7, name: '백엔드팀', code: 'BE', description: '백엔드 개발', parentId: 4, parentName: '개발팀', managerId: null, managerName: null, sortOrder: 2, isActive: true, memberCount: 3, children: [], createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00' },
         ],
       },
-      { id: 2, name: '마케팅팀', code: 'MKT', children: [] },
-      { id: 3, name: '영업팀', code: 'SALES', children: [] },
-      { id: 4, name: '인사팀', code: 'HR', children: [] },
-    ]));
+      {
+        id: 5, name: '마케팅팀', code: 'MKT', description: '마케팅 및 홍보', parentId: null, parentName: null, managerId: 39, managerName: '남마케터', sortOrder: 5, isActive: true, memberCount: 3, createdAt: '2025-12-01T00:00:00', updatedAt: '2025-12-01T00:00:00',
+        children: [],
+      },
+    ];
+    return HttpResponse.json(apiResponse(departmentTree));
+  }),
+
+  // 부서 멤버 조회
+  http.get('/api/departments/:id/members', async ({ params }) => {
+    await delay(30);
+    const departmentId = Number(params.id);
+    // mockUserDetails에서 해당 부서 사용자 필터링
+    const members = Object.values(mockUserDetails)
+      .filter(user => user.departmentId === departmentId && user.tenantId === 1)
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: null,
+        position: user.position,
+        role: user.currentRole,
+      }));
+    return HttpResponse.json(apiResponse(members));
+  }),
+
+  // 부서에 배정 가능한 멤버 조회
+  http.get('/api/departments/:id/available-members', async ({ params }) => {
+    await delay(30);
+    const departmentId = Number(params.id);
+    // mockUserDetails에서 다른 부서 또는 부서 없는 사용자 필터링
+    const availableMembers = Object.values(mockUserDetails)
+      .filter(user => user.departmentId !== departmentId && user.tenantId === 1)
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: null,
+        position: user.position,
+        role: user.currentRole,
+      }));
+    return HttpResponse.json(apiResponse(availableMembers));
   }),
 
   // ========== Tenants (SA) ==========
@@ -2063,6 +3666,988 @@ export const handlers = [
       courseCount: 12,
       activeEnrollments: 89,
       completionRate: 72.5,
+    }));
+  }),
+
+  // ========== Instructor Assignments (강사 배정 관리) ==========
+
+  // 전체 강사 배정 목록 조회 (TO용)
+  http.get('/api/instructor-assignments', async ({ request }) => {
+    await delay(50);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+    const keyword = url.searchParams.get('keyword') || '';
+    const role = url.searchParams.get('role') || '';
+    const status = url.searchParams.get('status') || '';
+
+    // Mock 강사 배정 데이터 생성
+    // MZC 강사: 12(박강사), 13(최설계), 34(조콘텐츠), 35(배강사)
+    // Samsung 강사: 22(윤강사), 23(장설계)
+    const mockInstructorAssignments = [
+      // MZC 아카데미 배정
+      { id: 1, instructorId: 12, courseTimeId: 1, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-10T10:00:00', createdAt: '2026-01-10T10:00:00' },
+      { id: 2, instructorId: 13, courseTimeId: 1, role: 'SUB' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-10T11:00:00', createdAt: '2026-01-10T11:00:00' },
+      { id: 3, instructorId: 12, courseTimeId: 2, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-12T09:00:00', createdAt: '2026-01-12T09:00:00' },
+      { id: 4, instructorId: 35, courseTimeId: 3, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-13T10:00:00', createdAt: '2026-01-13T10:00:00' },
+      { id: 5, instructorId: 34, courseTimeId: 3, role: 'ASSISTANT' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-13T10:30:00', createdAt: '2026-01-13T10:30:00' },
+      { id: 6, instructorId: 12, courseTimeId: 4, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-14T09:00:00', createdAt: '2026-01-14T09:00:00' },
+      { id: 7, instructorId: 13, courseTimeId: 5, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-15T10:00:00', createdAt: '2026-01-15T10:00:00' },
+      { id: 8, instructorId: 35, courseTimeId: 6, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-16T09:00:00', createdAt: '2026-01-16T09:00:00' },
+      { id: 9, instructorId: 12, courseTimeId: 7, role: 'MAIN' as const, status: 'REPLACED' as const, assignedAt: '2025-12-01T10:00:00', createdAt: '2025-12-01T10:00:00' },
+      { id: 10, instructorId: 35, courseTimeId: 7, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-05T10:00:00', createdAt: '2026-01-05T10:00:00' },
+      { id: 11, instructorId: 34, courseTimeId: 8, role: 'MAIN' as const, status: 'CANCELLED' as const, assignedAt: '2025-11-20T10:00:00', createdAt: '2025-11-20T10:00:00' },
+      // Samsung 러닝센터 배정
+      { id: 12, instructorId: 22, courseTimeId: 101, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-08T09:00:00', createdAt: '2026-01-08T09:00:00' },
+      { id: 13, instructorId: 23, courseTimeId: 101, role: 'SUB' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-08T09:30:00', createdAt: '2026-01-08T09:30:00' },
+      { id: 14, instructorId: 22, courseTimeId: 102, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-09T10:00:00', createdAt: '2026-01-09T10:00:00' },
+      { id: 15, instructorId: 23, courseTimeId: 103, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-10T09:00:00', createdAt: '2026-01-10T09:00:00' },
+      { id: 16, instructorId: 22, courseTimeId: 104, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-11T09:00:00', createdAt: '2026-01-11T09:00:00' },
+    ];
+
+    // 강사 정보, 차수 정보, 프로그램 정보 추가
+    let assignments = mockInstructorAssignments.map(a => {
+      const instructor = mockUserDetails[a.instructorId];
+      const courseTime = mockCourseTimes.find(ct => ct.id === a.courseTimeId);
+      return {
+        id: a.id,
+        instructor: instructor ? {
+          id: instructor.id,
+          name: instructor.name,
+          email: instructor.email,
+        } : { id: a.instructorId, name: `강사 ${a.instructorId}`, email: '' },
+        courseTime: courseTime ? {
+          id: courseTime.id,
+          title: courseTime.title,
+          startDate: courseTime.classStartDate,
+          endDate: courseTime.classEndDate,
+        } : { id: a.courseTimeId, title: `차수 ${a.courseTimeId}`, startDate: '', endDate: '' },
+        program: courseTime?.program ? {
+          id: courseTime.program.id,
+          title: courseTime.program.title,
+        } : { id: 0, title: '알 수 없음' },
+        role: a.role,
+        status: a.status,
+        assignedAt: a.assignedAt,
+        createdAt: a.createdAt,
+      };
+    });
+
+    // 키워드 검색 (강사명, 차수명, 과정명)
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      assignments = assignments.filter(a =>
+        a.instructor.name.toLowerCase().includes(lowerKeyword) ||
+        a.courseTime.title.toLowerCase().includes(lowerKeyword) ||
+        a.program.title.toLowerCase().includes(lowerKeyword)
+      );
+    }
+
+    // 역할 필터
+    if (role) {
+      assignments = assignments.filter(a => a.role === role);
+    }
+
+    // 상태 필터
+    if (status) {
+      assignments = assignments.filter(a => a.status === status);
+    }
+
+    // 페이지네이션
+    const totalElements = assignments.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const start = page * size;
+    const content = assignments.slice(start, start + size);
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements,
+      totalPages,
+      size,
+      number: page,
+    }));
+  }),
+
+  // 강사 배정 생성
+  http.post('/api/times/:timeId/instructors', async ({ params, request }) => {
+    await delay(50);
+    const timeId = Number(params.timeId);
+    const body = await request.json() as { userId: number; role: string; forceAssign?: boolean };
+
+    const instructor = mockUserDetails[body.userId];
+    const courseTime = mockCourseTimes.find(ct => ct.id === timeId);
+
+    const newAssignment = {
+      id: Date.now(),
+      timeId,
+      userId: body.userId,
+      userName: instructor?.name || `사용자 ${body.userId}`,
+      userEmail: instructor?.email || '',
+      role: body.role,
+      status: 'ACTIVE',
+      assignedAt: new Date().toISOString(),
+      courseTimeTitle: courseTime?.title || '',
+    };
+
+    return HttpResponse.json(apiResponse(newAssignment), { status: 201 });
+  }),
+
+  // 차수별 강사 목록 조회
+  http.get('/api/times/:timeId/instructors', async ({ params }) => {
+    await delay(30);
+    const timeId = Number(params.timeId);
+
+    // 해당 차수에 배정된 강사 mock 데이터
+    const assignmentsByTime: Record<number, Array<{ id: number; userId: number; role: string; status: string; assignedAt: string }>> = {
+      1: [
+        { id: 1, userId: 12, role: 'MAIN', status: 'ACTIVE', assignedAt: '2026-01-10T10:00:00' },
+        { id: 2, userId: 13, role: 'SUB', status: 'ACTIVE', assignedAt: '2026-01-10T11:00:00' },
+      ],
+      2: [
+        { id: 3, userId: 12, role: 'MAIN', status: 'ACTIVE', assignedAt: '2026-01-12T09:00:00' },
+      ],
+      3: [
+        { id: 4, userId: 35, role: 'MAIN', status: 'ACTIVE', assignedAt: '2026-01-13T10:00:00' },
+        { id: 5, userId: 34, role: 'ASSISTANT', status: 'ACTIVE', assignedAt: '2026-01-13T10:30:00' },
+      ],
+      101: [
+        { id: 12, userId: 22, role: 'MAIN', status: 'ACTIVE', assignedAt: '2026-01-08T09:00:00' },
+        { id: 13, userId: 23, role: 'SUB', status: 'ACTIVE', assignedAt: '2026-01-08T09:30:00' },
+      ],
+      102: [
+        { id: 14, userId: 22, role: 'MAIN', status: 'ACTIVE', assignedAt: '2026-01-09T10:00:00' },
+      ],
+    };
+
+    const assignments = assignmentsByTime[timeId] || [];
+
+    const result = assignments.map(a => {
+      const instructor = mockUserDetails[a.userId];
+      return {
+        id: a.id,
+        timeId,
+        userId: a.userId,
+        userName: instructor?.name || `사용자 ${a.userId}`,
+        userEmail: instructor?.email || '',
+        role: a.role,
+        status: a.status,
+        assignedAt: a.assignedAt,
+      };
+    });
+
+    return HttpResponse.json(apiResponse(result));
+  }),
+
+  // ========== Member Pools (회원 풀 관리) ==========
+
+  // 전체 회원 풀 목록 조회
+  http.get('/api/member-pools', async ({ request }) => {
+    await delay(50);
+    const url = new URL(request.url);
+    const search = url.searchParams.get('search') || '';
+    const isActive = url.searchParams.get('isActive');
+
+    // Mock 회원 풀 데이터
+    const mockMemberPools = [
+      {
+        id: 1,
+        name: '전체 개발팀',
+        description: '개발 관련 모든 직원을 대상으로 하는 회원 풀입니다.',
+        conditions: {
+          departmentIds: [3, 4],
+          positions: [],
+          jobTitles: ['개발자', '시니어 개발자', '주니어 개발자'],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 25,
+        isActive: true,
+        sortOrder: 1,
+        createdAt: '2026-01-05T10:00:00',
+        updatedAt: '2026-01-20T14:30:00',
+      },
+      {
+        id: 2,
+        name: '신입사원 온보딩',
+        description: '입사 1년 미만 신입사원 대상 교육 풀',
+        conditions: {
+          departmentIds: [],
+          positions: ['사원'],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 12,
+        isActive: true,
+        sortOrder: 2,
+        createdAt: '2026-01-08T09:00:00',
+        updatedAt: '2026-01-18T11:00:00',
+      },
+      {
+        id: 3,
+        name: '팀장/파트장급',
+        description: '리더십 교육 대상자 풀',
+        conditions: {
+          departmentIds: [],
+          positions: ['팀장', '파트장', '부장'],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 8,
+        isActive: true,
+        sortOrder: 3,
+        createdAt: '2026-01-10T15:00:00',
+        updatedAt: '2026-01-15T09:30:00',
+      },
+      {
+        id: 4,
+        name: '클라우드 전환 대상',
+        description: '클라우드 교육이 필요한 인프라/개발 담당자',
+        conditions: {
+          departmentIds: [4],
+          positions: [],
+          jobTitles: ['인프라 엔지니어', '백엔드 개발자', 'DevOps'],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 15,
+        isActive: true,
+        sortOrder: 4,
+        createdAt: '2026-01-12T11:00:00',
+        updatedAt: '2026-01-22T16:45:00',
+      },
+      {
+        id: 5,
+        name: '마케팅팀 전체',
+        description: '마케팅팀 소속 전 직원',
+        conditions: {
+          departmentIds: [5],
+          positions: [],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE', 'ON_LEAVE'],
+        },
+        memberCount: 10,
+        isActive: false,
+        sortOrder: 5,
+        createdAt: '2025-12-20T10:00:00',
+        updatedAt: '2026-01-05T14:00:00',
+      },
+      {
+        id: 6,
+        name: '휴직자 복귀 대상',
+        description: '복귀 예정 휴직자 교육 대상',
+        conditions: {
+          departmentIds: [],
+          positions: [],
+          jobTitles: [],
+          employeeStatuses: ['ON_LEAVE'],
+        },
+        memberCount: 3,
+        isActive: false,
+        sortOrder: 6,
+        createdAt: '2025-12-15T09:00:00',
+        updatedAt: '2025-12-28T17:00:00',
+      },
+    ];
+
+    let filtered = mockMemberPools;
+
+    // 검색 필터
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      filtered = filtered.filter(pool =>
+        pool.name.toLowerCase().includes(lowerSearch) ||
+        (pool.description && pool.description.toLowerCase().includes(lowerSearch))
+      );
+    }
+
+    // 활성화 상태 필터
+    if (isActive !== null && isActive !== undefined && isActive !== '') {
+      filtered = filtered.filter(pool => pool.isActive === (isActive === 'true'));
+    }
+
+    return HttpResponse.json(apiResponse(filtered));
+  }),
+
+  // 회원 풀 상세 조회
+  http.get('/api/member-pools/:id', async ({ params }) => {
+    await delay(30);
+    const poolId = Number(params.id);
+
+    const mockMemberPools: Record<number, {
+      id: number;
+      name: string;
+      description: string;
+      conditions: { departmentIds: number[]; positions: string[]; jobTitles: string[]; employeeStatuses: string[] };
+      memberCount: number;
+      isActive: boolean;
+      sortOrder: number;
+      createdAt: string;
+      updatedAt: string;
+    }> = {
+      1: {
+        id: 1,
+        name: '전체 개발팀',
+        description: '개발 관련 모든 직원을 대상으로 하는 회원 풀입니다.',
+        conditions: {
+          departmentIds: [3, 4],
+          positions: [],
+          jobTitles: ['개발자', '시니어 개발자', '주니어 개발자'],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 25,
+        isActive: true,
+        sortOrder: 1,
+        createdAt: '2026-01-05T10:00:00',
+        updatedAt: '2026-01-20T14:30:00',
+      },
+      2: {
+        id: 2,
+        name: '신입사원 온보딩',
+        description: '입사 1년 미만 신입사원 대상 교육 풀',
+        conditions: {
+          departmentIds: [],
+          positions: ['사원'],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 12,
+        isActive: true,
+        sortOrder: 2,
+        createdAt: '2026-01-08T09:00:00',
+        updatedAt: '2026-01-18T11:00:00',
+      },
+      3: {
+        id: 3,
+        name: '팀장/파트장급',
+        description: '리더십 교육 대상자 풀',
+        conditions: {
+          departmentIds: [],
+          positions: ['팀장', '파트장', '부장'],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 8,
+        isActive: true,
+        sortOrder: 3,
+        createdAt: '2026-01-10T15:00:00',
+        updatedAt: '2026-01-15T09:30:00',
+      },
+      4: {
+        id: 4,
+        name: '클라우드 전환 대상',
+        description: '클라우드 교육이 필요한 인프라/개발 담당자',
+        conditions: {
+          departmentIds: [4],
+          positions: [],
+          jobTitles: ['인프라 엔지니어', '백엔드 개발자', 'DevOps'],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 15,
+        isActive: true,
+        sortOrder: 4,
+        createdAt: '2026-01-12T11:00:00',
+        updatedAt: '2026-01-22T16:45:00',
+      },
+      5: {
+        id: 5,
+        name: '마케팅팀 전체',
+        description: '마케팅팀 소속 전 직원',
+        conditions: {
+          departmentIds: [5],
+          positions: [],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE', 'ON_LEAVE'],
+        },
+        memberCount: 10,
+        isActive: false,
+        sortOrder: 5,
+        createdAt: '2025-12-20T10:00:00',
+        updatedAt: '2026-01-05T14:00:00',
+      },
+      6: {
+        id: 6,
+        name: '휴직자 복귀 대상',
+        description: '복귀 예정 휴직자 교육 대상',
+        conditions: {
+          departmentIds: [],
+          positions: [],
+          jobTitles: [],
+          employeeStatuses: ['ON_LEAVE'],
+        },
+        memberCount: 3,
+        isActive: false,
+        sortOrder: 6,
+        createdAt: '2025-12-15T09:00:00',
+        updatedAt: '2025-12-28T17:00:00',
+      },
+    };
+
+    const pool = mockMemberPools[poolId];
+    if (!pool) {
+      return HttpResponse.json(
+        errorResponse('회원 풀을 찾을 수 없습니다.', 'MEMBER_POOL_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json(apiResponse(pool));
+  }),
+
+  // 회원 풀 멤버 목록 조회
+  http.get('/api/member-pools/:id/members', async ({ params, request }) => {
+    await delay(50);
+    const poolId = Number(params.id);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+
+    // 풀별 멤버 mock 데이터 (MZC 아카데미 사용자 기반)
+    const membersByPool: Record<number, Array<{
+      id: number;
+      name: string;
+      email: string;
+      employeeNumber: string;
+      departmentName: string;
+      position: string;
+      jobTitle: string;
+      status: string;
+    }>> = {
+      1: [ // 전체 개발팀
+        { id: 36, name: '송개발', email: 'dev2-mzc@demo.com', employeeNumber: 'MZC-036', departmentName: '개발팀', position: '사원', jobTitle: '백엔드 개발자', status: 'ACTIVE' },
+        { id: 37, name: '윤풀스택', email: 'dev3-mzc@demo.com', employeeNumber: 'MZC-037', departmentName: '개발팀', position: '대리', jobTitle: '풀스택 개발자', status: 'ACTIVE' },
+        { id: 38, name: '장데브옵스', email: 'dev4-mzc@demo.com', employeeNumber: 'MZC-038', departmentName: '개발팀', position: '과장', jobTitle: 'DevOps 엔지니어', status: 'ACTIVE' },
+        { id: 39, name: '임인프라', email: 'dev5-mzc@demo.com', employeeNumber: 'MZC-039', departmentName: '개발팀', position: '대리', jobTitle: '인프라 엔지니어', status: 'ACTIVE' },
+        { id: 40, name: '한클라우드', email: 'dev6-mzc@demo.com', employeeNumber: 'MZC-040', departmentName: '개발팀', position: '사원', jobTitle: '클라우드 엔지니어', status: 'ACTIVE' },
+        { id: 34, name: '조콘텐츠', email: 'dev1-mzc@demo.com', employeeNumber: 'MZC-034', departmentName: '교육개발팀', position: '사원', jobTitle: '콘텐츠 개발자', status: 'ACTIVE' },
+        { id: 13, name: '최설계', email: 'designer-mzc@demo.com', employeeNumber: 'MZC-013', departmentName: '교육개발팀', position: '대리', jobTitle: '교육 설계자', status: 'ACTIVE' },
+      ],
+      2: [ // 신입사원 온보딩
+        { id: 36, name: '송개발', email: 'dev2-mzc@demo.com', employeeNumber: 'MZC-036', departmentName: '개발팀', position: '사원', jobTitle: '백엔드 개발자', status: 'ACTIVE' },
+        { id: 40, name: '한클라우드', email: 'dev6-mzc@demo.com', employeeNumber: 'MZC-040', departmentName: '개발팀', position: '사원', jobTitle: '클라우드 엔지니어', status: 'ACTIVE' },
+        { id: 43, name: '나프론트', email: 'user7-mzc@demo.com', employeeNumber: 'MZC-043', departmentName: '개발팀', position: '사원', jobTitle: '프론트엔드 개발자', status: 'ACTIVE' },
+        { id: 34, name: '조콘텐츠', email: 'dev1-mzc@demo.com', employeeNumber: 'MZC-034', departmentName: '교육개발팀', position: '사원', jobTitle: '콘텐츠 개발자', status: 'ACTIVE' },
+      ],
+      3: [ // 팀장/파트장급
+        { id: 11, name: '김운영', email: 'co-mzc@demo.com', employeeNumber: 'MZC-011', departmentName: '교육운영팀', position: '과장', jobTitle: '운영 관리자', status: 'ACTIVE' },
+        { id: 44, name: '도백엔드', email: 'user8-mzc@demo.com', employeeNumber: 'MZC-044', departmentName: '개발팀', position: '과장', jobTitle: '백엔드 리드', status: 'ACTIVE' },
+        { id: 45, name: '라기획', email: 'user9-mzc@demo.com', employeeNumber: 'MZC-045', departmentName: '마케팅팀', position: '과장', jobTitle: '기획 관리자', status: 'ACTIVE' },
+      ],
+      4: [ // 클라우드 전환 대상
+        { id: 38, name: '장데브옵스', email: 'dev4-mzc@demo.com', employeeNumber: 'MZC-038', departmentName: '개발팀', position: '과장', jobTitle: 'DevOps 엔지니어', status: 'ACTIVE' },
+        { id: 39, name: '임인프라', email: 'dev5-mzc@demo.com', employeeNumber: 'MZC-039', departmentName: '개발팀', position: '대리', jobTitle: '인프라 엔지니어', status: 'ACTIVE' },
+        { id: 40, name: '한클라우드', email: 'dev6-mzc@demo.com', employeeNumber: 'MZC-040', departmentName: '개발팀', position: '사원', jobTitle: '클라우드 엔지니어', status: 'ACTIVE' },
+        { id: 36, name: '송개발', email: 'dev2-mzc@demo.com', employeeNumber: 'MZC-036', departmentName: '개발팀', position: '사원', jobTitle: '백엔드 개발자', status: 'ACTIVE' },
+      ],
+      5: [ // 마케팅팀 전체
+        { id: 45, name: '라기획', email: 'user9-mzc@demo.com', employeeNumber: 'MZC-045', departmentName: '마케팅팀', position: '과장', jobTitle: '기획 관리자', status: 'ACTIVE' },
+        { id: 46, name: '마디자인', email: 'user10-mzc@demo.com', employeeNumber: 'MZC-046', departmentName: '마케팅팀', position: '대리', jobTitle: '디자이너', status: 'ACTIVE' },
+      ],
+      6: [], // 휴직자 복귀 대상 - 비어있음
+    };
+
+    const members = membersByPool[poolId] || [];
+    const totalElements = members.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const start = page * size;
+    const content = members.slice(start, start + size);
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements,
+      totalPages,
+      size,
+      number: page,
+      first: page === 0,
+      last: page >= totalPages - 1,
+      empty: content.length === 0,
+    }));
+  }),
+
+  // 회원 풀 생성
+  http.post('/api/member-pools', async ({ request }) => {
+    await delay(50);
+    const body = await request.json() as { name: string; description?: string; conditions: object; sortOrder?: number };
+
+    const newPool = {
+      id: Date.now(),
+      name: body.name,
+      description: body.description || '',
+      conditions: body.conditions,
+      memberCount: Math.floor(Math.random() * 20) + 5,
+      isActive: true,
+      sortOrder: body.sortOrder || 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    return HttpResponse.json(apiResponse(newPool), { status: 201 });
+  }),
+
+  // 회원 풀 수정
+  http.put('/api/member-pools/:id', async ({ params, request }) => {
+    await delay(50);
+    const poolId = Number(params.id);
+    const body = await request.json() as { name?: string; description?: string; conditions?: object; sortOrder?: number };
+
+    const updatedPool = {
+      id: poolId,
+      name: body.name || '회원 풀',
+      description: body.description || '',
+      conditions: body.conditions || { departmentIds: [], positions: [], jobTitles: [], employeeStatuses: [] },
+      memberCount: Math.floor(Math.random() * 20) + 5,
+      isActive: true,
+      sortOrder: body.sortOrder || 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    };
+
+    return HttpResponse.json(apiResponse(updatedPool));
+  }),
+
+  // 회원 풀 삭제
+  http.delete('/api/member-pools/:id', async ({ params }) => {
+    await delay(30);
+    const poolId = Number(params.id);
+    console.log('Deleting member pool:', poolId);
+    return HttpResponse.json(apiResponse({ message: '회원 풀이 삭제되었습니다.' }));
+  }),
+
+  // 회원 풀 활성화
+  http.post('/api/member-pools/:id/activate', async ({ params }) => {
+    await delay(30);
+    const poolId = Number(params.id);
+
+    return HttpResponse.json(apiResponse({
+      id: poolId,
+      name: '회원 풀',
+      description: '',
+      conditions: { departmentIds: [], positions: [], jobTitles: [], employeeStatuses: [] },
+      memberCount: 10,
+      isActive: true,
+      sortOrder: 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    }));
+  }),
+
+  // 회원 풀 비활성화
+  http.post('/api/member-pools/:id/deactivate', async ({ params }) => {
+    await delay(30);
+    const poolId = Number(params.id);
+
+    return HttpResponse.json(apiResponse({
+      id: poolId,
+      name: '회원 풀',
+      description: '',
+      conditions: { departmentIds: [], positions: [], jobTitles: [], employeeStatuses: [] },
+      memberCount: 10,
+      isActive: false,
+      sortOrder: 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    }));
+  }),
+
+  // 멤버 미리보기
+  http.post('/api/member-pools/preview', async ({ request }) => {
+    await delay(50);
+    const body = await request.json() as { condition: object; page?: number; size?: number };
+    const page = body.page || 0;
+    const size = body.size || 10;
+
+    // 조건에 상관없이 기본 멤버 목록 반환
+    const mockMembers = [
+      { id: 36, name: '송개발', email: 'dev2-mzc@demo.com', employeeNumber: 'MZC-036', departmentName: '개발팀', position: '사원', jobTitle: '백엔드 개발자', status: 'ACTIVE' },
+      { id: 37, name: '윤풀스택', email: 'dev3-mzc@demo.com', employeeNumber: 'MZC-037', departmentName: '개발팀', position: '대리', jobTitle: '풀스택 개발자', status: 'ACTIVE' },
+      { id: 38, name: '장데브옵스', email: 'dev4-mzc@demo.com', employeeNumber: 'MZC-038', departmentName: '개발팀', position: '과장', jobTitle: 'DevOps 엔지니어', status: 'ACTIVE' },
+    ];
+
+    return HttpResponse.json(apiResponse({
+      content: mockMembers.slice(page * size, (page + 1) * size),
+      totalElements: mockMembers.length,
+      totalPages: Math.ceil(mockMembers.length / size),
+      size,
+      number: page,
+      first: page === 0,
+      last: page >= Math.ceil(mockMembers.length / size) - 1,
+      empty: mockMembers.length === 0,
+    }));
+  }),
+
+  // 회원 풀 매칭 카운트
+  http.get('/api/member-pools/:id/match-count', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ count: Math.floor(Math.random() * 30) + 5 }));
+  }),
+
+  // ========== Auto Enrollment Rules (자동 입과 규칙) ==========
+
+  // 자동 입과 규칙 목록 조회 (페이지네이션)
+  http.get('/api/auto-enrollment-rules', async ({ request }) => {
+    await delay(50);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+    const keyword = url.searchParams.get('keyword') || '';
+    const isActive = url.searchParams.get('isActive');
+    const trigger = url.searchParams.get('trigger');
+
+    // Mock 자동 입과 규칙 데이터
+    const mockAutoEnrollmentRules = [
+      {
+        id: 1,
+        name: '신입사원 필수 교육 자동 배정',
+        description: '신규 입사자에게 온보딩 과정을 자동으로 배정합니다.',
+        trigger: 'USER_JOIN' as const,
+        departmentId: null,
+        departmentName: null,
+        courseTimeId: 2,
+        courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 1기',
+        isActive: true,
+        sortOrder: 1,
+        createdAt: '2026-01-05T10:00:00',
+        updatedAt: '2026-01-20T14:30:00',
+      },
+      {
+        id: 2,
+        name: '개발팀 배정 시 React 교육',
+        description: '개발팀 배정 시 React 기초 과정을 자동 배정합니다.',
+        trigger: 'DEPARTMENT_ASSIGN' as const,
+        departmentId: 4,
+        departmentName: '개발팀',
+        courseTimeId: 1,
+        courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기',
+        isActive: true,
+        sortOrder: 2,
+        createdAt: '2026-01-08T09:00:00',
+        updatedAt: '2026-01-18T11:00:00',
+      },
+      {
+        id: 3,
+        name: '교육개발팀 배정 시 콘텐츠 제작 교육',
+        description: '교육개발팀 배정자에게 콘텐츠 제작 과정을 배정합니다.',
+        trigger: 'DEPARTMENT_ASSIGN' as const,
+        departmentId: 3,
+        departmentName: '교육개발팀',
+        courseTimeId: 5,
+        courseTimeTitle: 'React 기초부터 실전까지 - 2024년 3기',
+        isActive: true,
+        sortOrder: 3,
+        createdAt: '2026-01-10T15:00:00',
+        updatedAt: '2026-01-15T09:30:00',
+      },
+      {
+        id: 4,
+        name: '리더 승진 시 리더십 교육',
+        description: '팀장/파트장 역할 변경 시 리더십 과정을 배정합니다.',
+        trigger: 'ROLE_CHANGE' as const,
+        departmentId: null,
+        departmentName: null,
+        courseTimeId: 3,
+        courseTimeTitle: 'AWS 클라우드 입문 - 2024년 1기',
+        isActive: true,
+        sortOrder: 4,
+        createdAt: '2026-01-12T11:00:00',
+        updatedAt: '2026-01-22T16:45:00',
+      },
+      {
+        id: 5,
+        name: '마케팅팀 필수 교육',
+        description: '마케팅팀 배정 시 마케팅 기초 과정을 배정합니다.',
+        trigger: 'DEPARTMENT_ASSIGN' as const,
+        departmentId: 5,
+        departmentName: '마케팅팀',
+        courseTimeId: 4,
+        courseTimeTitle: 'Python 데이터 분석 - 2024년 1기',
+        isActive: false,
+        sortOrder: 5,
+        createdAt: '2025-12-20T10:00:00',
+        updatedAt: '2026-01-05T14:00:00',
+      },
+      {
+        id: 6,
+        name: '전사원 보안 교육',
+        description: '신규 입사자에게 정보보안 교육을 필수로 배정합니다.',
+        trigger: 'USER_JOIN' as const,
+        departmentId: null,
+        departmentName: null,
+        courseTimeId: 6,
+        courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 2기',
+        isActive: false,
+        sortOrder: 6,
+        createdAt: '2025-12-15T09:00:00',
+        updatedAt: '2025-12-28T17:00:00',
+      },
+    ];
+
+    let filtered = mockAutoEnrollmentRules;
+
+    // 키워드 검색
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      filtered = filtered.filter(rule =>
+        rule.name.toLowerCase().includes(lowerKeyword) ||
+        (rule.description && rule.description.toLowerCase().includes(lowerKeyword))
+      );
+    }
+
+    // 활성화 상태 필터
+    if (isActive !== null && isActive !== undefined && isActive !== '') {
+      filtered = filtered.filter(rule => rule.isActive === (isActive === 'true'));
+    }
+
+    // 트리거 필터
+    if (trigger) {
+      filtered = filtered.filter(rule => rule.trigger === trigger);
+    }
+
+    const totalElements = filtered.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const start = page * size;
+    const content = filtered.slice(start, start + size);
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements,
+      totalPages,
+      size,
+      number: page,
+      first: page === 0,
+      last: page >= totalPages - 1,
+      empty: content.length === 0,
+    }));
+  }),
+
+  // 활성 자동 입과 규칙 조회
+  http.get('/api/auto-enrollment-rules/active', async () => {
+    await delay(30);
+
+    const activeRules = [
+      {
+        id: 1,
+        name: '신입사원 필수 교육 자동 배정',
+        description: '신규 입사자에게 온보딩 과정을 자동으로 배정합니다.',
+        trigger: 'USER_JOIN',
+        departmentId: null,
+        departmentName: null,
+        courseTimeId: 2,
+        courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 1기',
+        isActive: true,
+        sortOrder: 1,
+        createdAt: '2026-01-05T10:00:00',
+        updatedAt: '2026-01-20T14:30:00',
+      },
+      {
+        id: 2,
+        name: '개발팀 배정 시 React 교육',
+        description: '개발팀 배정 시 React 기초 과정을 자동 배정합니다.',
+        trigger: 'DEPARTMENT_ASSIGN',
+        departmentId: 4,
+        departmentName: '개발팀',
+        courseTimeId: 1,
+        courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기',
+        isActive: true,
+        sortOrder: 2,
+        createdAt: '2026-01-08T09:00:00',
+        updatedAt: '2026-01-18T11:00:00',
+      },
+      {
+        id: 3,
+        name: '교육개발팀 배정 시 콘텐츠 제작 교육',
+        description: '교육개발팀 배정자에게 콘텐츠 제작 과정을 배정합니다.',
+        trigger: 'DEPARTMENT_ASSIGN',
+        departmentId: 3,
+        departmentName: '교육개발팀',
+        courseTimeId: 5,
+        courseTimeTitle: 'React 기초부터 실전까지 - 2024년 3기',
+        isActive: true,
+        sortOrder: 3,
+        createdAt: '2026-01-10T15:00:00',
+        updatedAt: '2026-01-15T09:30:00',
+      },
+      {
+        id: 4,
+        name: '리더 승진 시 리더십 교육',
+        description: '팀장/파트장 역할 변경 시 리더십 과정을 배정합니다.',
+        trigger: 'ROLE_CHANGE',
+        departmentId: null,
+        departmentName: null,
+        courseTimeId: 3,
+        courseTimeTitle: 'AWS 클라우드 입문 - 2024년 1기',
+        isActive: true,
+        sortOrder: 4,
+        createdAt: '2026-01-12T11:00:00',
+        updatedAt: '2026-01-22T16:45:00',
+      },
+    ];
+
+    return HttpResponse.json(apiResponse(activeRules));
+  }),
+
+  // 트리거별 자동 입과 규칙 조회
+  http.get('/api/auto-enrollment-rules/trigger/:trigger', async ({ params }) => {
+    await delay(30);
+    const trigger = params.trigger as string;
+
+    const allRules = [
+      { id: 1, name: '신입사원 필수 교육 자동 배정', trigger: 'USER_JOIN', courseTimeId: 2, courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 1기', isActive: true },
+      { id: 2, name: '개발팀 배정 시 React 교육', trigger: 'DEPARTMENT_ASSIGN', departmentId: 4, departmentName: '개발팀', courseTimeId: 1, courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기', isActive: true },
+      { id: 3, name: '교육개발팀 배정 시 콘텐츠 제작 교육', trigger: 'DEPARTMENT_ASSIGN', departmentId: 3, departmentName: '교육개발팀', courseTimeId: 5, courseTimeTitle: 'React 기초부터 실전까지 - 2024년 3기', isActive: true },
+      { id: 4, name: '리더 승진 시 리더십 교육', trigger: 'ROLE_CHANGE', courseTimeId: 3, courseTimeTitle: 'AWS 클라우드 입문 - 2024년 1기', isActive: true },
+      { id: 5, name: '마케팅팀 필수 교육', trigger: 'DEPARTMENT_ASSIGN', departmentId: 5, departmentName: '마케팅팀', courseTimeId: 4, courseTimeTitle: 'Python 데이터 분석 - 2024년 1기', isActive: false },
+      { id: 6, name: '전사원 보안 교육', trigger: 'USER_JOIN', courseTimeId: 6, courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 2기', isActive: false },
+    ];
+
+    const filtered = allRules.filter(rule => rule.trigger === trigger);
+    return HttpResponse.json(apiResponse(filtered));
+  }),
+
+  // 자동 입과 규칙 상세 조회
+  http.get('/api/auto-enrollment-rules/:id', async ({ params }) => {
+    await delay(30);
+    const ruleId = Number(params.id);
+
+    const mockRules: Record<number, {
+      id: number;
+      name: string;
+      description: string | null;
+      trigger: string;
+      departmentId: number | null;
+      departmentName: string | null;
+      courseTimeId: number;
+      courseTimeTitle: string;
+      isActive: boolean;
+      sortOrder: number;
+      createdAt: string;
+      updatedAt: string;
+    }> = {
+      1: { id: 1, name: '신입사원 필수 교육 자동 배정', description: '신규 입사자에게 온보딩 과정을 자동으로 배정합니다.', trigger: 'USER_JOIN', departmentId: null, departmentName: null, courseTimeId: 2, courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 1기', isActive: true, sortOrder: 1, createdAt: '2026-01-05T10:00:00', updatedAt: '2026-01-20T14:30:00' },
+      2: { id: 2, name: '개발팀 배정 시 React 교육', description: '개발팀 배정 시 React 기초 과정을 자동 배정합니다.', trigger: 'DEPARTMENT_ASSIGN', departmentId: 4, departmentName: '개발팀', courseTimeId: 1, courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기', isActive: true, sortOrder: 2, createdAt: '2026-01-08T09:00:00', updatedAt: '2026-01-18T11:00:00' },
+      3: { id: 3, name: '교육개발팀 배정 시 콘텐츠 제작 교육', description: '교육개발팀 배정자에게 콘텐츠 제작 과정을 배정합니다.', trigger: 'DEPARTMENT_ASSIGN', departmentId: 3, departmentName: '교육개발팀', courseTimeId: 5, courseTimeTitle: 'React 기초부터 실전까지 - 2024년 3기', isActive: true, sortOrder: 3, createdAt: '2026-01-10T15:00:00', updatedAt: '2026-01-15T09:30:00' },
+      4: { id: 4, name: '리더 승진 시 리더십 교육', description: '팀장/파트장 역할 변경 시 리더십 과정을 배정합니다.', trigger: 'ROLE_CHANGE', departmentId: null, departmentName: null, courseTimeId: 3, courseTimeTitle: 'AWS 클라우드 입문 - 2024년 1기', isActive: true, sortOrder: 4, createdAt: '2026-01-12T11:00:00', updatedAt: '2026-01-22T16:45:00' },
+      5: { id: 5, name: '마케팅팀 필수 교육', description: '마케팅팀 배정 시 마케팅 기초 과정을 배정합니다.', trigger: 'DEPARTMENT_ASSIGN', departmentId: 5, departmentName: '마케팅팀', courseTimeId: 4, courseTimeTitle: 'Python 데이터 분석 - 2024년 1기', isActive: false, sortOrder: 5, createdAt: '2025-12-20T10:00:00', updatedAt: '2026-01-05T14:00:00' },
+      6: { id: 6, name: '전사원 보안 교육', description: '신규 입사자에게 정보보안 교육을 필수로 배정합니다.', trigger: 'USER_JOIN', departmentId: null, departmentName: null, courseTimeId: 6, courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 2기', isActive: false, sortOrder: 6, createdAt: '2025-12-15T09:00:00', updatedAt: '2025-12-28T17:00:00' },
+    };
+
+    const rule = mockRules[ruleId];
+    if (!rule) {
+      return HttpResponse.json(
+        errorResponse('자동 입과 규칙을 찾을 수 없습니다.', 'AUTO_ENROLLMENT_RULE_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json(apiResponse(rule));
+  }),
+
+  // 자동 입과 규칙 생성
+  http.post('/api/auto-enrollment-rules', async ({ request }) => {
+    await delay(50);
+    const body = await request.json() as {
+      name: string;
+      description?: string;
+      trigger: string;
+      departmentId?: number;
+      courseTimeId: number;
+      sortOrder?: number;
+    };
+
+    const courseTime = mockCourseTimes.find(ct => ct.id === body.courseTimeId);
+
+    const newRule = {
+      id: Date.now(),
+      name: body.name,
+      description: body.description || null,
+      trigger: body.trigger,
+      departmentId: body.departmentId || null,
+      departmentName: body.departmentId ? '개발팀' : null, // 간단히 처리
+      courseTimeId: body.courseTimeId,
+      courseTimeTitle: courseTime?.title || `차수 ${body.courseTimeId}`,
+      isActive: true,
+      sortOrder: body.sortOrder || 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    return HttpResponse.json(apiResponse(newRule), { status: 201 });
+  }),
+
+  // 자동 입과 규칙 수정
+  http.put('/api/auto-enrollment-rules/:id', async ({ params, request }) => {
+    await delay(50);
+    const ruleId = Number(params.id);
+    const body = await request.json() as {
+      name?: string;
+      description?: string;
+      trigger?: string;
+      departmentId?: number;
+      courseTimeId?: number;
+      sortOrder?: number;
+    };
+
+    const courseTime = body.courseTimeId ? mockCourseTimes.find(ct => ct.id === body.courseTimeId) : null;
+
+    const updatedRule = {
+      id: ruleId,
+      name: body.name || '자동 입과 규칙',
+      description: body.description || null,
+      trigger: body.trigger || 'USER_JOIN',
+      departmentId: body.departmentId || null,
+      departmentName: body.departmentId ? '개발팀' : null,
+      courseTimeId: body.courseTimeId || 1,
+      courseTimeTitle: courseTime?.title || '차수',
+      isActive: true,
+      sortOrder: body.sortOrder || 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    };
+
+    return HttpResponse.json(apiResponse(updatedRule));
+  }),
+
+  // 자동 입과 규칙 삭제
+  http.delete('/api/auto-enrollment-rules/:id', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ message: '자동 입과 규칙이 삭제되었습니다.' }));
+  }),
+
+  // 자동 입과 규칙 활성화
+  http.post('/api/auto-enrollment-rules/:id/activate', async ({ params }) => {
+    await delay(30);
+    const ruleId = Number(params.id);
+
+    return HttpResponse.json(apiResponse({
+      id: ruleId,
+      name: '자동 입과 규칙',
+      description: null,
+      trigger: 'USER_JOIN',
+      departmentId: null,
+      departmentName: null,
+      courseTimeId: 1,
+      courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기',
+      isActive: true,
+      sortOrder: 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    }));
+  }),
+
+  // 자동 입과 규칙 비활성화
+  http.post('/api/auto-enrollment-rules/:id/deactivate', async ({ params }) => {
+    await delay(30);
+    const ruleId = Number(params.id);
+
+    return HttpResponse.json(apiResponse({
+      id: ruleId,
+      name: '자동 입과 규칙',
+      description: null,
+      trigger: 'USER_JOIN',
+      departmentId: null,
+      departmentName: null,
+      courseTimeId: 1,
+      courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기',
+      isActive: false,
+      sortOrder: 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
     }));
   }),
 ];
