@@ -347,6 +347,88 @@ export const handlers = [
     return HttpResponse.json(apiResponse(user?.roles || ['USER']));
   }),
 
+  // 사용자별 수강 통계 조회
+  http.get('/api/users/:id/enrollments/stats', async ({ params }) => {
+    await delay(30);
+    const userId = Number(params.id);
+
+    // 해당 사용자의 수강 이력 조회
+    const userEnrollments = mockEnrollments.filter(e => e.userId === userId);
+
+    const totalEnrollments = userEnrollments.length;
+    const completedCount = userEnrollments.filter(e => e.status === 'COMPLETED').length;
+    const inProgressCount = userEnrollments.filter(e => e.status === 'ENROLLED').length;
+    const droppedCount = userEnrollments.filter(e => e.status === 'DROPPED').length;
+    const failedCount = userEnrollments.filter(e => e.status === 'FAILED').length;
+
+    const completionRate = totalEnrollments > 0
+      ? Math.round((completedCount / totalEnrollments) * 100)
+      : 0;
+
+    const enrollmentsWithProgress = userEnrollments.filter(e => e.progressPercent !== undefined);
+    const averageProgress = enrollmentsWithProgress.length > 0
+      ? Math.round(enrollmentsWithProgress.reduce((sum, e) => sum + (e.progressPercent || 0), 0) / enrollmentsWithProgress.length)
+      : 0;
+
+    const enrollmentsWithScore = userEnrollments.filter(e => e.score !== null && e.score !== undefined);
+    const averageScore = enrollmentsWithScore.length > 0
+      ? Math.round(enrollmentsWithScore.reduce((sum, e) => sum + (e.score || 0), 0) / enrollmentsWithScore.length)
+      : 0;
+
+    return HttpResponse.json(apiResponse({
+      userId,
+      totalEnrollments,
+      completedCount,
+      inProgressCount,
+      droppedCount,
+      failedCount,
+      completionRate,
+      averageScore,
+      averageProgress,
+    }));
+  }),
+
+  // 사용자별 수강 이력 조회
+  http.get('/api/users/:id/enrollments', async ({ params, request }) => {
+    await delay(50);
+    const userId = Number(params.id);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+    const status = url.searchParams.get('status') || '';
+
+    let userEnrollments = mockEnrollments.filter(e => e.userId === userId);
+
+    // 상태 필터링
+    if (status) {
+      userEnrollments = userEnrollments.filter(e => e.status === status);
+    }
+
+    const totalElements = userEnrollments.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const start = page * size;
+    const paged = userEnrollments.slice(start, start + size);
+
+    // 과정 정보 추가
+    const content = paged.map(e => {
+      const courseTime = mockCourseTimes.find(ct => ct.id === e.courseTimeId);
+      const course = mockCourses.find(c => c.id === courseTime?.courseId);
+      return {
+        ...e,
+        courseTitle: course?.title || `Course ${e.courseTimeId}`,
+        courseTimeName: courseTime?.name || `차수 ${e.courseTimeId}`,
+      };
+    });
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements,
+      totalPages,
+      size,
+      number: page,
+    }));
+  }),
+
   // Update user
   http.put('/api/users/:id', async ({ params, request }) => {
     await delay(50);
@@ -1052,7 +1134,18 @@ export const handlers = [
       filteredTimes = mockCourseTimes.filter(time => time.program?.id === courseId);
     }
 
-    return HttpResponse.json(apiResponse(paginatedResponse(filteredTimes, page, size)));
+    // CourseTimeResponse 형식으로 변환 (courseTitle, instructors 변환)
+    const transformedTimes = filteredTimes.map(time => ({
+      ...time,
+      courseTitle: time.program?.title ?? null,
+      instructors: time.instructors?.map(instructor => ({
+        ...instructor,
+        userName: instructor.name,
+        status: 'ACTIVE' as const,
+      })) ?? [],
+    }));
+
+    return HttpResponse.json(apiResponse(paginatedResponse(transformedTimes, page, size)));
   }),
 
   http.get('/api/times/:id', async ({ params }) => {
@@ -1064,16 +1157,47 @@ export const handlers = [
         { status: 404 }
       );
     }
-    // BackendCourseTimeResponse 형식으로 반환
+    // CourseTimeResponse 형식으로 반환 (상세 페이지용)
     return HttpResponse.json(apiResponse({
       id: time.id,
       title: time.title,
+      status: time.status,
       programId: time.program?.id ?? null,
       programName: time.program?.title ?? null,
+      courseId: time.program?.id ?? null,
+      courseTitle: time.program?.title ?? null,
+      courseThumbnailUrl: time.program?.thumbnailUrl ?? null,
+      courseDescription: time.program?.description ?? null,
+      courseCategory: time.program?.categoryName ?? null,
+      courseDifficulty: time.program?.level ?? null,
+      deliveryType: time.deliveryType,
+      enrollmentMethod: time.enrollmentMethod,
+      locationInfo: null,
+      capacity: time.capacity,
+      currentEnrollment: time.currentEnrollment,
+      availableSeats: time.availableSeats,
+      price: time.price,
+      isFree: time.isFree,
+      enrollStartDate: time.enrollStartDate,
+      enrollEndDate: time.enrollEndDate,
       classStartDate: time.classStartDate,
       classEndDate: time.classEndDate,
-      snapshotId: time.id, // mock에서는 id를 사용
-      courseTitle: time.program?.title ?? null,
+      durationType: 'FIXED',
+      durationDays: null,
+      allowLateEnrollment: false,
+      minProgressForCompletion: 80,
+      recurringSchedule: null,
+      instructors: time.instructors?.map(instructor => ({
+        id: instructor.id,
+        userName: instructor.name,
+        userEmail: `instructor${instructor.id}@demo.com`,
+        role: instructor.role,
+        status: 'ACTIVE',
+        profileImageUrl: instructor.profileImageUrl,
+      })) ?? [],
+      snapshotId: time.id,
+      createdAt: '2026-01-15T09:00:00',
+      description: null,
     }));
   }),
 
@@ -1972,6 +2096,84 @@ Server Components와 함께 사용하면 정말 편해요!`, author: { id: 36, n
   http.post('/api/enrollments', async () => {
     await delay(50);
     return HttpResponse.json(apiResponse({ id: 100, message: '수강 신청이 완료되었습니다.' }));
+  }),
+
+  // 차수별 수강생 목록 조회 (관리자용)
+  http.get('/api/times/:id/enrollments', async ({ params, request }) => {
+    await delay(50);
+    const courseTimeId = Number(params.id);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+    const keyword = url.searchParams.get('keyword') || '';
+    const status = url.searchParams.get('status') || '';
+
+    // 해당 차수의 수강생 필터링
+    let filtered = mockEnrollments.filter(e => e.courseTimeId === courseTimeId);
+
+    // 키워드 검색 (유저 이름, 이메일)
+    if (keyword) {
+      filtered = filtered.filter(e => {
+        const user = mockUsers.users.find((u: { id: number }) => u.id === e.userId);
+        if (!user) return false;
+        return user.name.toLowerCase().includes(keyword.toLowerCase()) ||
+               user.email.toLowerCase().includes(keyword.toLowerCase());
+      });
+    }
+
+    // 상태 필터
+    if (status) {
+      filtered = filtered.filter(e => e.status === status);
+    }
+
+    // 페이지네이션
+    const start = page * size;
+    const paged = filtered.slice(start, start + size);
+
+    // 유저 정보 조인
+    const content = paged.map(e => {
+      const user = mockUsers.users.find((u: { id: number }) => u.id === e.userId);
+      return {
+        ...e,
+        userName: user?.name || `User ${e.userId}`,
+        userEmail: user?.email || `user${e.userId}@example.com`,
+      };
+    });
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements: filtered.length,
+      totalPages: Math.ceil(filtered.length / size),
+      size,
+      number: page,
+    }));
+  }),
+
+  // 차수별 수강 통계 조회
+  http.get('/api/times/:id/enrollments/stats', async ({ params }) => {
+    await delay(30);
+    const courseTimeId = Number(params.id);
+    const enrollments = mockEnrollments.filter(e => e.courseTimeId === courseTimeId);
+
+    const totalEnrollments = enrollments.length;
+    const enrolledCount = enrollments.filter(e => e.status === 'ENROLLED').length;
+    const completedCount = enrollments.filter(e => e.status === 'COMPLETED').length;
+    const droppedCount = enrollments.filter(e => e.status === 'DROPPED').length;
+    const pendingCount = enrollments.filter(e => e.status === 'PENDING').length;
+    const completionRate = totalEnrollments > 0 ? (completedCount / totalEnrollments) * 100 : 0;
+    const avgProgress = enrollments.length > 0
+      ? enrollments.reduce((sum, e) => sum + (e.progressPercent || 0), 0) / enrollments.length
+      : 0;
+
+    return HttpResponse.json(apiResponse({
+      totalEnrollments,
+      enrolledCount,
+      completedCount,
+      droppedCount,
+      pendingCount,
+      completionRate,
+      averageProgress: avgProgress,
+    }));
   }),
 
   // 차수별 수강 신청 (CourseTime enrollment)
