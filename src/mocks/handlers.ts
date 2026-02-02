@@ -3640,4 +3640,173 @@ Server Components와 함께 사용하면 정말 편해요!`, author: { id: 36, n
       completionRate: 72.5,
     }));
   }),
+
+  // ========== Instructor Assignments (강사 배정 관리) ==========
+
+  // 전체 강사 배정 목록 조회 (TO용)
+  http.get('/api/instructor-assignments', async ({ request }) => {
+    await delay(50);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+    const keyword = url.searchParams.get('keyword') || '';
+    const role = url.searchParams.get('role') || '';
+    const status = url.searchParams.get('status') || '';
+
+    // Mock 강사 배정 데이터 생성
+    // MZC 강사: 12(박강사), 13(최설계), 34(조콘텐츠), 35(배강사)
+    // Samsung 강사: 22(윤강사), 23(장설계)
+    const mockInstructorAssignments = [
+      // MZC 아카데미 배정
+      { id: 1, instructorId: 12, courseTimeId: 1, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-10T10:00:00', createdAt: '2026-01-10T10:00:00' },
+      { id: 2, instructorId: 13, courseTimeId: 1, role: 'SUB' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-10T11:00:00', createdAt: '2026-01-10T11:00:00' },
+      { id: 3, instructorId: 12, courseTimeId: 2, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-12T09:00:00', createdAt: '2026-01-12T09:00:00' },
+      { id: 4, instructorId: 35, courseTimeId: 3, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-13T10:00:00', createdAt: '2026-01-13T10:00:00' },
+      { id: 5, instructorId: 34, courseTimeId: 3, role: 'ASSISTANT' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-13T10:30:00', createdAt: '2026-01-13T10:30:00' },
+      { id: 6, instructorId: 12, courseTimeId: 4, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-14T09:00:00', createdAt: '2026-01-14T09:00:00' },
+      { id: 7, instructorId: 13, courseTimeId: 5, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-15T10:00:00', createdAt: '2026-01-15T10:00:00' },
+      { id: 8, instructorId: 35, courseTimeId: 6, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-16T09:00:00', createdAt: '2026-01-16T09:00:00' },
+      { id: 9, instructorId: 12, courseTimeId: 7, role: 'MAIN' as const, status: 'REPLACED' as const, assignedAt: '2025-12-01T10:00:00', createdAt: '2025-12-01T10:00:00' },
+      { id: 10, instructorId: 35, courseTimeId: 7, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-05T10:00:00', createdAt: '2026-01-05T10:00:00' },
+      { id: 11, instructorId: 34, courseTimeId: 8, role: 'MAIN' as const, status: 'CANCELLED' as const, assignedAt: '2025-11-20T10:00:00', createdAt: '2025-11-20T10:00:00' },
+      // Samsung 러닝센터 배정
+      { id: 12, instructorId: 22, courseTimeId: 101, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-08T09:00:00', createdAt: '2026-01-08T09:00:00' },
+      { id: 13, instructorId: 23, courseTimeId: 101, role: 'SUB' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-08T09:30:00', createdAt: '2026-01-08T09:30:00' },
+      { id: 14, instructorId: 22, courseTimeId: 102, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-09T10:00:00', createdAt: '2026-01-09T10:00:00' },
+      { id: 15, instructorId: 23, courseTimeId: 103, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-10T09:00:00', createdAt: '2026-01-10T09:00:00' },
+      { id: 16, instructorId: 22, courseTimeId: 104, role: 'MAIN' as const, status: 'ACTIVE' as const, assignedAt: '2026-01-11T09:00:00', createdAt: '2026-01-11T09:00:00' },
+    ];
+
+    // 강사 정보, 차수 정보, 프로그램 정보 추가
+    let assignments = mockInstructorAssignments.map(a => {
+      const instructor = mockUserDetails[a.instructorId];
+      const courseTime = mockCourseTimes.find(ct => ct.id === a.courseTimeId);
+      return {
+        id: a.id,
+        instructor: instructor ? {
+          id: instructor.id,
+          name: instructor.name,
+          email: instructor.email,
+        } : { id: a.instructorId, name: `강사 ${a.instructorId}`, email: '' },
+        courseTime: courseTime ? {
+          id: courseTime.id,
+          title: courseTime.title,
+          startDate: courseTime.classStartDate,
+          endDate: courseTime.classEndDate,
+        } : { id: a.courseTimeId, title: `차수 ${a.courseTimeId}`, startDate: '', endDate: '' },
+        program: courseTime?.program ? {
+          id: courseTime.program.id,
+          title: courseTime.program.title,
+        } : { id: 0, title: '알 수 없음' },
+        role: a.role,
+        status: a.status,
+        assignedAt: a.assignedAt,
+        createdAt: a.createdAt,
+      };
+    });
+
+    // 키워드 검색 (강사명, 차수명, 과정명)
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      assignments = assignments.filter(a =>
+        a.instructor.name.toLowerCase().includes(lowerKeyword) ||
+        a.courseTime.title.toLowerCase().includes(lowerKeyword) ||
+        a.program.title.toLowerCase().includes(lowerKeyword)
+      );
+    }
+
+    // 역할 필터
+    if (role) {
+      assignments = assignments.filter(a => a.role === role);
+    }
+
+    // 상태 필터
+    if (status) {
+      assignments = assignments.filter(a => a.status === status);
+    }
+
+    // 페이지네이션
+    const totalElements = assignments.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const start = page * size;
+    const content = assignments.slice(start, start + size);
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements,
+      totalPages,
+      size,
+      number: page,
+    }));
+  }),
+
+  // 강사 배정 생성
+  http.post('/api/times/:timeId/instructors', async ({ params, request }) => {
+    await delay(50);
+    const timeId = Number(params.timeId);
+    const body = await request.json() as { userId: number; role: string; forceAssign?: boolean };
+
+    const instructor = mockUserDetails[body.userId];
+    const courseTime = mockCourseTimes.find(ct => ct.id === timeId);
+
+    const newAssignment = {
+      id: Date.now(),
+      timeId,
+      userId: body.userId,
+      userName: instructor?.name || `사용자 ${body.userId}`,
+      userEmail: instructor?.email || '',
+      role: body.role,
+      status: 'ACTIVE',
+      assignedAt: new Date().toISOString(),
+      courseTimeTitle: courseTime?.title || '',
+    };
+
+    return HttpResponse.json(apiResponse(newAssignment), { status: 201 });
+  }),
+
+  // 차수별 강사 목록 조회
+  http.get('/api/times/:timeId/instructors', async ({ params }) => {
+    await delay(30);
+    const timeId = Number(params.timeId);
+
+    // 해당 차수에 배정된 강사 mock 데이터
+    const assignmentsByTime: Record<number, Array<{ id: number; userId: number; role: string; status: string; assignedAt: string }>> = {
+      1: [
+        { id: 1, userId: 12, role: 'MAIN', status: 'ACTIVE', assignedAt: '2026-01-10T10:00:00' },
+        { id: 2, userId: 13, role: 'SUB', status: 'ACTIVE', assignedAt: '2026-01-10T11:00:00' },
+      ],
+      2: [
+        { id: 3, userId: 12, role: 'MAIN', status: 'ACTIVE', assignedAt: '2026-01-12T09:00:00' },
+      ],
+      3: [
+        { id: 4, userId: 35, role: 'MAIN', status: 'ACTIVE', assignedAt: '2026-01-13T10:00:00' },
+        { id: 5, userId: 34, role: 'ASSISTANT', status: 'ACTIVE', assignedAt: '2026-01-13T10:30:00' },
+      ],
+      101: [
+        { id: 12, userId: 22, role: 'MAIN', status: 'ACTIVE', assignedAt: '2026-01-08T09:00:00' },
+        { id: 13, userId: 23, role: 'SUB', status: 'ACTIVE', assignedAt: '2026-01-08T09:30:00' },
+      ],
+      102: [
+        { id: 14, userId: 22, role: 'MAIN', status: 'ACTIVE', assignedAt: '2026-01-09T10:00:00' },
+      ],
+    };
+
+    const assignments = assignmentsByTime[timeId] || [];
+
+    const result = assignments.map(a => {
+      const instructor = mockUserDetails[a.userId];
+      return {
+        id: a.id,
+        timeId,
+        userId: a.userId,
+        userName: instructor?.name || `사용자 ${a.userId}`,
+        userEmail: instructor?.email || '',
+        role: a.role,
+        status: a.status,
+        assignedAt: a.assignedAt,
+      };
+    });
+
+    return HttpResponse.json(apiResponse(result));
+  }),
 ];
