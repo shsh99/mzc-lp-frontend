@@ -3809,4 +3809,444 @@ Server Components와 함께 사용하면 정말 편해요!`, author: { id: 36, n
 
     return HttpResponse.json(apiResponse(result));
   }),
+
+  // ========== Member Pools (회원 풀 관리) ==========
+
+  // 전체 회원 풀 목록 조회
+  http.get('/api/member-pools', async ({ request }) => {
+    await delay(50);
+    const url = new URL(request.url);
+    const search = url.searchParams.get('search') || '';
+    const isActive = url.searchParams.get('isActive');
+
+    // Mock 회원 풀 데이터
+    const mockMemberPools = [
+      {
+        id: 1,
+        name: '전체 개발팀',
+        description: '개발 관련 모든 직원을 대상으로 하는 회원 풀입니다.',
+        conditions: {
+          departmentIds: [3, 4],
+          positions: [],
+          jobTitles: ['개발자', '시니어 개발자', '주니어 개발자'],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 25,
+        isActive: true,
+        sortOrder: 1,
+        createdAt: '2026-01-05T10:00:00',
+        updatedAt: '2026-01-20T14:30:00',
+      },
+      {
+        id: 2,
+        name: '신입사원 온보딩',
+        description: '입사 1년 미만 신입사원 대상 교육 풀',
+        conditions: {
+          departmentIds: [],
+          positions: ['사원'],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 12,
+        isActive: true,
+        sortOrder: 2,
+        createdAt: '2026-01-08T09:00:00',
+        updatedAt: '2026-01-18T11:00:00',
+      },
+      {
+        id: 3,
+        name: '팀장/파트장급',
+        description: '리더십 교육 대상자 풀',
+        conditions: {
+          departmentIds: [],
+          positions: ['팀장', '파트장', '부장'],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 8,
+        isActive: true,
+        sortOrder: 3,
+        createdAt: '2026-01-10T15:00:00',
+        updatedAt: '2026-01-15T09:30:00',
+      },
+      {
+        id: 4,
+        name: '클라우드 전환 대상',
+        description: '클라우드 교육이 필요한 인프라/개발 담당자',
+        conditions: {
+          departmentIds: [4],
+          positions: [],
+          jobTitles: ['인프라 엔지니어', '백엔드 개발자', 'DevOps'],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 15,
+        isActive: true,
+        sortOrder: 4,
+        createdAt: '2026-01-12T11:00:00',
+        updatedAt: '2026-01-22T16:45:00',
+      },
+      {
+        id: 5,
+        name: '마케팅팀 전체',
+        description: '마케팅팀 소속 전 직원',
+        conditions: {
+          departmentIds: [5],
+          positions: [],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE', 'ON_LEAVE'],
+        },
+        memberCount: 10,
+        isActive: false,
+        sortOrder: 5,
+        createdAt: '2025-12-20T10:00:00',
+        updatedAt: '2026-01-05T14:00:00',
+      },
+      {
+        id: 6,
+        name: '휴직자 복귀 대상',
+        description: '복귀 예정 휴직자 교육 대상',
+        conditions: {
+          departmentIds: [],
+          positions: [],
+          jobTitles: [],
+          employeeStatuses: ['ON_LEAVE'],
+        },
+        memberCount: 3,
+        isActive: false,
+        sortOrder: 6,
+        createdAt: '2025-12-15T09:00:00',
+        updatedAt: '2025-12-28T17:00:00',
+      },
+    ];
+
+    let filtered = mockMemberPools;
+
+    // 검색 필터
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      filtered = filtered.filter(pool =>
+        pool.name.toLowerCase().includes(lowerSearch) ||
+        (pool.description && pool.description.toLowerCase().includes(lowerSearch))
+      );
+    }
+
+    // 활성화 상태 필터
+    if (isActive !== null && isActive !== undefined && isActive !== '') {
+      filtered = filtered.filter(pool => pool.isActive === (isActive === 'true'));
+    }
+
+    return HttpResponse.json(apiResponse(filtered));
+  }),
+
+  // 회원 풀 상세 조회
+  http.get('/api/member-pools/:id', async ({ params }) => {
+    await delay(30);
+    const poolId = Number(params.id);
+
+    const mockMemberPools: Record<number, {
+      id: number;
+      name: string;
+      description: string;
+      conditions: { departmentIds: number[]; positions: string[]; jobTitles: string[]; employeeStatuses: string[] };
+      memberCount: number;
+      isActive: boolean;
+      sortOrder: number;
+      createdAt: string;
+      updatedAt: string;
+    }> = {
+      1: {
+        id: 1,
+        name: '전체 개발팀',
+        description: '개발 관련 모든 직원을 대상으로 하는 회원 풀입니다.',
+        conditions: {
+          departmentIds: [3, 4],
+          positions: [],
+          jobTitles: ['개발자', '시니어 개발자', '주니어 개발자'],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 25,
+        isActive: true,
+        sortOrder: 1,
+        createdAt: '2026-01-05T10:00:00',
+        updatedAt: '2026-01-20T14:30:00',
+      },
+      2: {
+        id: 2,
+        name: '신입사원 온보딩',
+        description: '입사 1년 미만 신입사원 대상 교육 풀',
+        conditions: {
+          departmentIds: [],
+          positions: ['사원'],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 12,
+        isActive: true,
+        sortOrder: 2,
+        createdAt: '2026-01-08T09:00:00',
+        updatedAt: '2026-01-18T11:00:00',
+      },
+      3: {
+        id: 3,
+        name: '팀장/파트장급',
+        description: '리더십 교육 대상자 풀',
+        conditions: {
+          departmentIds: [],
+          positions: ['팀장', '파트장', '부장'],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 8,
+        isActive: true,
+        sortOrder: 3,
+        createdAt: '2026-01-10T15:00:00',
+        updatedAt: '2026-01-15T09:30:00',
+      },
+      4: {
+        id: 4,
+        name: '클라우드 전환 대상',
+        description: '클라우드 교육이 필요한 인프라/개발 담당자',
+        conditions: {
+          departmentIds: [4],
+          positions: [],
+          jobTitles: ['인프라 엔지니어', '백엔드 개발자', 'DevOps'],
+          employeeStatuses: ['ACTIVE'],
+        },
+        memberCount: 15,
+        isActive: true,
+        sortOrder: 4,
+        createdAt: '2026-01-12T11:00:00',
+        updatedAt: '2026-01-22T16:45:00',
+      },
+      5: {
+        id: 5,
+        name: '마케팅팀 전체',
+        description: '마케팅팀 소속 전 직원',
+        conditions: {
+          departmentIds: [5],
+          positions: [],
+          jobTitles: [],
+          employeeStatuses: ['ACTIVE', 'ON_LEAVE'],
+        },
+        memberCount: 10,
+        isActive: false,
+        sortOrder: 5,
+        createdAt: '2025-12-20T10:00:00',
+        updatedAt: '2026-01-05T14:00:00',
+      },
+      6: {
+        id: 6,
+        name: '휴직자 복귀 대상',
+        description: '복귀 예정 휴직자 교육 대상',
+        conditions: {
+          departmentIds: [],
+          positions: [],
+          jobTitles: [],
+          employeeStatuses: ['ON_LEAVE'],
+        },
+        memberCount: 3,
+        isActive: false,
+        sortOrder: 6,
+        createdAt: '2025-12-15T09:00:00',
+        updatedAt: '2025-12-28T17:00:00',
+      },
+    };
+
+    const pool = mockMemberPools[poolId];
+    if (!pool) {
+      return HttpResponse.json(
+        errorResponse('회원 풀을 찾을 수 없습니다.', 'MEMBER_POOL_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json(apiResponse(pool));
+  }),
+
+  // 회원 풀 멤버 목록 조회
+  http.get('/api/member-pools/:id/members', async ({ params, request }) => {
+    await delay(50);
+    const poolId = Number(params.id);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+
+    // 풀별 멤버 mock 데이터 (MZC 아카데미 사용자 기반)
+    const membersByPool: Record<number, Array<{
+      id: number;
+      name: string;
+      email: string;
+      employeeNumber: string;
+      departmentName: string;
+      position: string;
+      jobTitle: string;
+      status: string;
+    }>> = {
+      1: [ // 전체 개발팀
+        { id: 36, name: '송개발', email: 'dev2-mzc@demo.com', employeeNumber: 'MZC-036', departmentName: '개발팀', position: '사원', jobTitle: '백엔드 개발자', status: 'ACTIVE' },
+        { id: 37, name: '윤풀스택', email: 'dev3-mzc@demo.com', employeeNumber: 'MZC-037', departmentName: '개발팀', position: '대리', jobTitle: '풀스택 개발자', status: 'ACTIVE' },
+        { id: 38, name: '장데브옵스', email: 'dev4-mzc@demo.com', employeeNumber: 'MZC-038', departmentName: '개발팀', position: '과장', jobTitle: 'DevOps 엔지니어', status: 'ACTIVE' },
+        { id: 39, name: '임인프라', email: 'dev5-mzc@demo.com', employeeNumber: 'MZC-039', departmentName: '개발팀', position: '대리', jobTitle: '인프라 엔지니어', status: 'ACTIVE' },
+        { id: 40, name: '한클라우드', email: 'dev6-mzc@demo.com', employeeNumber: 'MZC-040', departmentName: '개발팀', position: '사원', jobTitle: '클라우드 엔지니어', status: 'ACTIVE' },
+        { id: 34, name: '조콘텐츠', email: 'dev1-mzc@demo.com', employeeNumber: 'MZC-034', departmentName: '교육개발팀', position: '사원', jobTitle: '콘텐츠 개발자', status: 'ACTIVE' },
+        { id: 13, name: '최설계', email: 'designer-mzc@demo.com', employeeNumber: 'MZC-013', departmentName: '교육개발팀', position: '대리', jobTitle: '교육 설계자', status: 'ACTIVE' },
+      ],
+      2: [ // 신입사원 온보딩
+        { id: 36, name: '송개발', email: 'dev2-mzc@demo.com', employeeNumber: 'MZC-036', departmentName: '개발팀', position: '사원', jobTitle: '백엔드 개발자', status: 'ACTIVE' },
+        { id: 40, name: '한클라우드', email: 'dev6-mzc@demo.com', employeeNumber: 'MZC-040', departmentName: '개발팀', position: '사원', jobTitle: '클라우드 엔지니어', status: 'ACTIVE' },
+        { id: 43, name: '나프론트', email: 'user7-mzc@demo.com', employeeNumber: 'MZC-043', departmentName: '개발팀', position: '사원', jobTitle: '프론트엔드 개발자', status: 'ACTIVE' },
+        { id: 34, name: '조콘텐츠', email: 'dev1-mzc@demo.com', employeeNumber: 'MZC-034', departmentName: '교육개발팀', position: '사원', jobTitle: '콘텐츠 개발자', status: 'ACTIVE' },
+      ],
+      3: [ // 팀장/파트장급
+        { id: 11, name: '김운영', email: 'co-mzc@demo.com', employeeNumber: 'MZC-011', departmentName: '교육운영팀', position: '과장', jobTitle: '운영 관리자', status: 'ACTIVE' },
+        { id: 44, name: '도백엔드', email: 'user8-mzc@demo.com', employeeNumber: 'MZC-044', departmentName: '개발팀', position: '과장', jobTitle: '백엔드 리드', status: 'ACTIVE' },
+        { id: 45, name: '라기획', email: 'user9-mzc@demo.com', employeeNumber: 'MZC-045', departmentName: '마케팅팀', position: '과장', jobTitle: '기획 관리자', status: 'ACTIVE' },
+      ],
+      4: [ // 클라우드 전환 대상
+        { id: 38, name: '장데브옵스', email: 'dev4-mzc@demo.com', employeeNumber: 'MZC-038', departmentName: '개발팀', position: '과장', jobTitle: 'DevOps 엔지니어', status: 'ACTIVE' },
+        { id: 39, name: '임인프라', email: 'dev5-mzc@demo.com', employeeNumber: 'MZC-039', departmentName: '개발팀', position: '대리', jobTitle: '인프라 엔지니어', status: 'ACTIVE' },
+        { id: 40, name: '한클라우드', email: 'dev6-mzc@demo.com', employeeNumber: 'MZC-040', departmentName: '개발팀', position: '사원', jobTitle: '클라우드 엔지니어', status: 'ACTIVE' },
+        { id: 36, name: '송개발', email: 'dev2-mzc@demo.com', employeeNumber: 'MZC-036', departmentName: '개발팀', position: '사원', jobTitle: '백엔드 개발자', status: 'ACTIVE' },
+      ],
+      5: [ // 마케팅팀 전체
+        { id: 45, name: '라기획', email: 'user9-mzc@demo.com', employeeNumber: 'MZC-045', departmentName: '마케팅팀', position: '과장', jobTitle: '기획 관리자', status: 'ACTIVE' },
+        { id: 46, name: '마디자인', email: 'user10-mzc@demo.com', employeeNumber: 'MZC-046', departmentName: '마케팅팀', position: '대리', jobTitle: '디자이너', status: 'ACTIVE' },
+      ],
+      6: [], // 휴직자 복귀 대상 - 비어있음
+    };
+
+    const members = membersByPool[poolId] || [];
+    const totalElements = members.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const start = page * size;
+    const content = members.slice(start, start + size);
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements,
+      totalPages,
+      size,
+      number: page,
+      first: page === 0,
+      last: page >= totalPages - 1,
+      empty: content.length === 0,
+    }));
+  }),
+
+  // 회원 풀 생성
+  http.post('/api/member-pools', async ({ request }) => {
+    await delay(50);
+    const body = await request.json() as { name: string; description?: string; conditions: object; sortOrder?: number };
+
+    const newPool = {
+      id: Date.now(),
+      name: body.name,
+      description: body.description || '',
+      conditions: body.conditions,
+      memberCount: Math.floor(Math.random() * 20) + 5,
+      isActive: true,
+      sortOrder: body.sortOrder || 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    return HttpResponse.json(apiResponse(newPool), { status: 201 });
+  }),
+
+  // 회원 풀 수정
+  http.put('/api/member-pools/:id', async ({ params, request }) => {
+    await delay(50);
+    const poolId = Number(params.id);
+    const body = await request.json() as { name?: string; description?: string; conditions?: object; sortOrder?: number };
+
+    const updatedPool = {
+      id: poolId,
+      name: body.name || '회원 풀',
+      description: body.description || '',
+      conditions: body.conditions || { departmentIds: [], positions: [], jobTitles: [], employeeStatuses: [] },
+      memberCount: Math.floor(Math.random() * 20) + 5,
+      isActive: true,
+      sortOrder: body.sortOrder || 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    };
+
+    return HttpResponse.json(apiResponse(updatedPool));
+  }),
+
+  // 회원 풀 삭제
+  http.delete('/api/member-pools/:id', async ({ params }) => {
+    await delay(30);
+    const poolId = Number(params.id);
+    console.log('Deleting member pool:', poolId);
+    return HttpResponse.json(apiResponse({ message: '회원 풀이 삭제되었습니다.' }));
+  }),
+
+  // 회원 풀 활성화
+  http.post('/api/member-pools/:id/activate', async ({ params }) => {
+    await delay(30);
+    const poolId = Number(params.id);
+
+    return HttpResponse.json(apiResponse({
+      id: poolId,
+      name: '회원 풀',
+      description: '',
+      conditions: { departmentIds: [], positions: [], jobTitles: [], employeeStatuses: [] },
+      memberCount: 10,
+      isActive: true,
+      sortOrder: 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    }));
+  }),
+
+  // 회원 풀 비활성화
+  http.post('/api/member-pools/:id/deactivate', async ({ params }) => {
+    await delay(30);
+    const poolId = Number(params.id);
+
+    return HttpResponse.json(apiResponse({
+      id: poolId,
+      name: '회원 풀',
+      description: '',
+      conditions: { departmentIds: [], positions: [], jobTitles: [], employeeStatuses: [] },
+      memberCount: 10,
+      isActive: false,
+      sortOrder: 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    }));
+  }),
+
+  // 멤버 미리보기
+  http.post('/api/member-pools/preview', async ({ request }) => {
+    await delay(50);
+    const body = await request.json() as { condition: object; page?: number; size?: number };
+    const page = body.page || 0;
+    const size = body.size || 10;
+
+    // 조건에 상관없이 기본 멤버 목록 반환
+    const mockMembers = [
+      { id: 36, name: '송개발', email: 'dev2-mzc@demo.com', employeeNumber: 'MZC-036', departmentName: '개발팀', position: '사원', jobTitle: '백엔드 개발자', status: 'ACTIVE' },
+      { id: 37, name: '윤풀스택', email: 'dev3-mzc@demo.com', employeeNumber: 'MZC-037', departmentName: '개발팀', position: '대리', jobTitle: '풀스택 개발자', status: 'ACTIVE' },
+      { id: 38, name: '장데브옵스', email: 'dev4-mzc@demo.com', employeeNumber: 'MZC-038', departmentName: '개발팀', position: '과장', jobTitle: 'DevOps 엔지니어', status: 'ACTIVE' },
+    ];
+
+    return HttpResponse.json(apiResponse({
+      content: mockMembers.slice(page * size, (page + 1) * size),
+      totalElements: mockMembers.length,
+      totalPages: Math.ceil(mockMembers.length / size),
+      size,
+      number: page,
+      first: page === 0,
+      last: page >= Math.ceil(mockMembers.length / size) - 1,
+      empty: mockMembers.length === 0,
+    }));
+  }),
+
+  // 회원 풀 매칭 카운트
+  http.get('/api/member-pools/:id/match-count', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ count: Math.floor(Math.random() * 30) + 5 }));
+  }),
 ];
