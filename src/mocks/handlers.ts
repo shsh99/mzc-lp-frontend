@@ -4249,4 +4249,377 @@ Server Components와 함께 사용하면 정말 편해요!`, author: { id: 36, n
     await delay(30);
     return HttpResponse.json(apiResponse({ count: Math.floor(Math.random() * 30) + 5 }));
   }),
+
+  // ========== Auto Enrollment Rules (자동 입과 규칙) ==========
+
+  // 자동 입과 규칙 목록 조회 (페이지네이션)
+  http.get('/api/auto-enrollment-rules', async ({ request }) => {
+    await delay(50);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+    const keyword = url.searchParams.get('keyword') || '';
+    const isActive = url.searchParams.get('isActive');
+    const trigger = url.searchParams.get('trigger');
+
+    // Mock 자동 입과 규칙 데이터
+    const mockAutoEnrollmentRules = [
+      {
+        id: 1,
+        name: '신입사원 필수 교육 자동 배정',
+        description: '신규 입사자에게 온보딩 과정을 자동으로 배정합니다.',
+        trigger: 'USER_JOIN' as const,
+        departmentId: null,
+        departmentName: null,
+        courseTimeId: 2,
+        courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 1기',
+        isActive: true,
+        sortOrder: 1,
+        createdAt: '2026-01-05T10:00:00',
+        updatedAt: '2026-01-20T14:30:00',
+      },
+      {
+        id: 2,
+        name: '개발팀 배정 시 React 교육',
+        description: '개발팀 배정 시 React 기초 과정을 자동 배정합니다.',
+        trigger: 'DEPARTMENT_ASSIGN' as const,
+        departmentId: 4,
+        departmentName: '개발팀',
+        courseTimeId: 1,
+        courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기',
+        isActive: true,
+        sortOrder: 2,
+        createdAt: '2026-01-08T09:00:00',
+        updatedAt: '2026-01-18T11:00:00',
+      },
+      {
+        id: 3,
+        name: '교육개발팀 배정 시 콘텐츠 제작 교육',
+        description: '교육개발팀 배정자에게 콘텐츠 제작 과정을 배정합니다.',
+        trigger: 'DEPARTMENT_ASSIGN' as const,
+        departmentId: 3,
+        departmentName: '교육개발팀',
+        courseTimeId: 5,
+        courseTimeTitle: 'React 기초부터 실전까지 - 2024년 3기',
+        isActive: true,
+        sortOrder: 3,
+        createdAt: '2026-01-10T15:00:00',
+        updatedAt: '2026-01-15T09:30:00',
+      },
+      {
+        id: 4,
+        name: '리더 승진 시 리더십 교육',
+        description: '팀장/파트장 역할 변경 시 리더십 과정을 배정합니다.',
+        trigger: 'ROLE_CHANGE' as const,
+        departmentId: null,
+        departmentName: null,
+        courseTimeId: 3,
+        courseTimeTitle: 'AWS 클라우드 입문 - 2024년 1기',
+        isActive: true,
+        sortOrder: 4,
+        createdAt: '2026-01-12T11:00:00',
+        updatedAt: '2026-01-22T16:45:00',
+      },
+      {
+        id: 5,
+        name: '마케팅팀 필수 교육',
+        description: '마케팅팀 배정 시 마케팅 기초 과정을 배정합니다.',
+        trigger: 'DEPARTMENT_ASSIGN' as const,
+        departmentId: 5,
+        departmentName: '마케팅팀',
+        courseTimeId: 4,
+        courseTimeTitle: 'Python 데이터 분석 - 2024년 1기',
+        isActive: false,
+        sortOrder: 5,
+        createdAt: '2025-12-20T10:00:00',
+        updatedAt: '2026-01-05T14:00:00',
+      },
+      {
+        id: 6,
+        name: '전사원 보안 교육',
+        description: '신규 입사자에게 정보보안 교육을 필수로 배정합니다.',
+        trigger: 'USER_JOIN' as const,
+        departmentId: null,
+        departmentName: null,
+        courseTimeId: 6,
+        courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 2기',
+        isActive: false,
+        sortOrder: 6,
+        createdAt: '2025-12-15T09:00:00',
+        updatedAt: '2025-12-28T17:00:00',
+      },
+    ];
+
+    let filtered = mockAutoEnrollmentRules;
+
+    // 키워드 검색
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      filtered = filtered.filter(rule =>
+        rule.name.toLowerCase().includes(lowerKeyword) ||
+        (rule.description && rule.description.toLowerCase().includes(lowerKeyword))
+      );
+    }
+
+    // 활성화 상태 필터
+    if (isActive !== null && isActive !== undefined && isActive !== '') {
+      filtered = filtered.filter(rule => rule.isActive === (isActive === 'true'));
+    }
+
+    // 트리거 필터
+    if (trigger) {
+      filtered = filtered.filter(rule => rule.trigger === trigger);
+    }
+
+    const totalElements = filtered.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const start = page * size;
+    const content = filtered.slice(start, start + size);
+
+    return HttpResponse.json(apiResponse({
+      content,
+      totalElements,
+      totalPages,
+      size,
+      number: page,
+      first: page === 0,
+      last: page >= totalPages - 1,
+      empty: content.length === 0,
+    }));
+  }),
+
+  // 활성 자동 입과 규칙 조회
+  http.get('/api/auto-enrollment-rules/active', async () => {
+    await delay(30);
+
+    const activeRules = [
+      {
+        id: 1,
+        name: '신입사원 필수 교육 자동 배정',
+        description: '신규 입사자에게 온보딩 과정을 자동으로 배정합니다.',
+        trigger: 'USER_JOIN',
+        departmentId: null,
+        departmentName: null,
+        courseTimeId: 2,
+        courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 1기',
+        isActive: true,
+        sortOrder: 1,
+        createdAt: '2026-01-05T10:00:00',
+        updatedAt: '2026-01-20T14:30:00',
+      },
+      {
+        id: 2,
+        name: '개발팀 배정 시 React 교육',
+        description: '개발팀 배정 시 React 기초 과정을 자동 배정합니다.',
+        trigger: 'DEPARTMENT_ASSIGN',
+        departmentId: 4,
+        departmentName: '개발팀',
+        courseTimeId: 1,
+        courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기',
+        isActive: true,
+        sortOrder: 2,
+        createdAt: '2026-01-08T09:00:00',
+        updatedAt: '2026-01-18T11:00:00',
+      },
+      {
+        id: 3,
+        name: '교육개발팀 배정 시 콘텐츠 제작 교육',
+        description: '교육개발팀 배정자에게 콘텐츠 제작 과정을 배정합니다.',
+        trigger: 'DEPARTMENT_ASSIGN',
+        departmentId: 3,
+        departmentName: '교육개발팀',
+        courseTimeId: 5,
+        courseTimeTitle: 'React 기초부터 실전까지 - 2024년 3기',
+        isActive: true,
+        sortOrder: 3,
+        createdAt: '2026-01-10T15:00:00',
+        updatedAt: '2026-01-15T09:30:00',
+      },
+      {
+        id: 4,
+        name: '리더 승진 시 리더십 교육',
+        description: '팀장/파트장 역할 변경 시 리더십 과정을 배정합니다.',
+        trigger: 'ROLE_CHANGE',
+        departmentId: null,
+        departmentName: null,
+        courseTimeId: 3,
+        courseTimeTitle: 'AWS 클라우드 입문 - 2024년 1기',
+        isActive: true,
+        sortOrder: 4,
+        createdAt: '2026-01-12T11:00:00',
+        updatedAt: '2026-01-22T16:45:00',
+      },
+    ];
+
+    return HttpResponse.json(apiResponse(activeRules));
+  }),
+
+  // 트리거별 자동 입과 규칙 조회
+  http.get('/api/auto-enrollment-rules/trigger/:trigger', async ({ params }) => {
+    await delay(30);
+    const trigger = params.trigger as string;
+
+    const allRules = [
+      { id: 1, name: '신입사원 필수 교육 자동 배정', trigger: 'USER_JOIN', courseTimeId: 2, courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 1기', isActive: true },
+      { id: 2, name: '개발팀 배정 시 React 교육', trigger: 'DEPARTMENT_ASSIGN', departmentId: 4, departmentName: '개발팀', courseTimeId: 1, courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기', isActive: true },
+      { id: 3, name: '교육개발팀 배정 시 콘텐츠 제작 교육', trigger: 'DEPARTMENT_ASSIGN', departmentId: 3, departmentName: '교육개발팀', courseTimeId: 5, courseTimeTitle: 'React 기초부터 실전까지 - 2024년 3기', isActive: true },
+      { id: 4, name: '리더 승진 시 리더십 교육', trigger: 'ROLE_CHANGE', courseTimeId: 3, courseTimeTitle: 'AWS 클라우드 입문 - 2024년 1기', isActive: true },
+      { id: 5, name: '마케팅팀 필수 교육', trigger: 'DEPARTMENT_ASSIGN', departmentId: 5, departmentName: '마케팅팀', courseTimeId: 4, courseTimeTitle: 'Python 데이터 분석 - 2024년 1기', isActive: false },
+      { id: 6, name: '전사원 보안 교육', trigger: 'USER_JOIN', courseTimeId: 6, courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 2기', isActive: false },
+    ];
+
+    const filtered = allRules.filter(rule => rule.trigger === trigger);
+    return HttpResponse.json(apiResponse(filtered));
+  }),
+
+  // 자동 입과 규칙 상세 조회
+  http.get('/api/auto-enrollment-rules/:id', async ({ params }) => {
+    await delay(30);
+    const ruleId = Number(params.id);
+
+    const mockRules: Record<number, {
+      id: number;
+      name: string;
+      description: string | null;
+      trigger: string;
+      departmentId: number | null;
+      departmentName: string | null;
+      courseTimeId: number;
+      courseTimeTitle: string;
+      isActive: boolean;
+      sortOrder: number;
+      createdAt: string;
+      updatedAt: string;
+    }> = {
+      1: { id: 1, name: '신입사원 필수 교육 자동 배정', description: '신규 입사자에게 온보딩 과정을 자동으로 배정합니다.', trigger: 'USER_JOIN', departmentId: null, departmentName: null, courseTimeId: 2, courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 1기', isActive: true, sortOrder: 1, createdAt: '2026-01-05T10:00:00', updatedAt: '2026-01-20T14:30:00' },
+      2: { id: 2, name: '개발팀 배정 시 React 교육', description: '개발팀 배정 시 React 기초 과정을 자동 배정합니다.', trigger: 'DEPARTMENT_ASSIGN', departmentId: 4, departmentName: '개발팀', courseTimeId: 1, courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기', isActive: true, sortOrder: 2, createdAt: '2026-01-08T09:00:00', updatedAt: '2026-01-18T11:00:00' },
+      3: { id: 3, name: '교육개발팀 배정 시 콘텐츠 제작 교육', description: '교육개발팀 배정자에게 콘텐츠 제작 과정을 배정합니다.', trigger: 'DEPARTMENT_ASSIGN', departmentId: 3, departmentName: '교육개발팀', courseTimeId: 5, courseTimeTitle: 'React 기초부터 실전까지 - 2024년 3기', isActive: true, sortOrder: 3, createdAt: '2026-01-10T15:00:00', updatedAt: '2026-01-15T09:30:00' },
+      4: { id: 4, name: '리더 승진 시 리더십 교육', description: '팀장/파트장 역할 변경 시 리더십 과정을 배정합니다.', trigger: 'ROLE_CHANGE', departmentId: null, departmentName: null, courseTimeId: 3, courseTimeTitle: 'AWS 클라우드 입문 - 2024년 1기', isActive: true, sortOrder: 4, createdAt: '2026-01-12T11:00:00', updatedAt: '2026-01-22T16:45:00' },
+      5: { id: 5, name: '마케팅팀 필수 교육', description: '마케팅팀 배정 시 마케팅 기초 과정을 배정합니다.', trigger: 'DEPARTMENT_ASSIGN', departmentId: 5, departmentName: '마케팅팀', courseTimeId: 4, courseTimeTitle: 'Python 데이터 분석 - 2024년 1기', isActive: false, sortOrder: 5, createdAt: '2025-12-20T10:00:00', updatedAt: '2026-01-05T14:00:00' },
+      6: { id: 6, name: '전사원 보안 교육', description: '신규 입사자에게 정보보안 교육을 필수로 배정합니다.', trigger: 'USER_JOIN', departmentId: null, departmentName: null, courseTimeId: 6, courseTimeTitle: 'TypeScript 마스터 클래스 - 2024년 2기', isActive: false, sortOrder: 6, createdAt: '2025-12-15T09:00:00', updatedAt: '2025-12-28T17:00:00' },
+    };
+
+    const rule = mockRules[ruleId];
+    if (!rule) {
+      return HttpResponse.json(
+        errorResponse('자동 입과 규칙을 찾을 수 없습니다.', 'AUTO_ENROLLMENT_RULE_NOT_FOUND'),
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json(apiResponse(rule));
+  }),
+
+  // 자동 입과 규칙 생성
+  http.post('/api/auto-enrollment-rules', async ({ request }) => {
+    await delay(50);
+    const body = await request.json() as {
+      name: string;
+      description?: string;
+      trigger: string;
+      departmentId?: number;
+      courseTimeId: number;
+      sortOrder?: number;
+    };
+
+    const courseTime = mockCourseTimes.find(ct => ct.id === body.courseTimeId);
+
+    const newRule = {
+      id: Date.now(),
+      name: body.name,
+      description: body.description || null,
+      trigger: body.trigger,
+      departmentId: body.departmentId || null,
+      departmentName: body.departmentId ? '개발팀' : null, // 간단히 처리
+      courseTimeId: body.courseTimeId,
+      courseTimeTitle: courseTime?.title || `차수 ${body.courseTimeId}`,
+      isActive: true,
+      sortOrder: body.sortOrder || 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    return HttpResponse.json(apiResponse(newRule), { status: 201 });
+  }),
+
+  // 자동 입과 규칙 수정
+  http.put('/api/auto-enrollment-rules/:id', async ({ params, request }) => {
+    await delay(50);
+    const ruleId = Number(params.id);
+    const body = await request.json() as {
+      name?: string;
+      description?: string;
+      trigger?: string;
+      departmentId?: number;
+      courseTimeId?: number;
+      sortOrder?: number;
+    };
+
+    const courseTime = body.courseTimeId ? mockCourseTimes.find(ct => ct.id === body.courseTimeId) : null;
+
+    const updatedRule = {
+      id: ruleId,
+      name: body.name || '자동 입과 규칙',
+      description: body.description || null,
+      trigger: body.trigger || 'USER_JOIN',
+      departmentId: body.departmentId || null,
+      departmentName: body.departmentId ? '개발팀' : null,
+      courseTimeId: body.courseTimeId || 1,
+      courseTimeTitle: courseTime?.title || '차수',
+      isActive: true,
+      sortOrder: body.sortOrder || 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    };
+
+    return HttpResponse.json(apiResponse(updatedRule));
+  }),
+
+  // 자동 입과 규칙 삭제
+  http.delete('/api/auto-enrollment-rules/:id', async () => {
+    await delay(30);
+    return HttpResponse.json(apiResponse({ message: '자동 입과 규칙이 삭제되었습니다.' }));
+  }),
+
+  // 자동 입과 규칙 활성화
+  http.post('/api/auto-enrollment-rules/:id/activate', async ({ params }) => {
+    await delay(30);
+    const ruleId = Number(params.id);
+
+    return HttpResponse.json(apiResponse({
+      id: ruleId,
+      name: '자동 입과 규칙',
+      description: null,
+      trigger: 'USER_JOIN',
+      departmentId: null,
+      departmentName: null,
+      courseTimeId: 1,
+      courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기',
+      isActive: true,
+      sortOrder: 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    }));
+  }),
+
+  // 자동 입과 규칙 비활성화
+  http.post('/api/auto-enrollment-rules/:id/deactivate', async ({ params }) => {
+    await delay(30);
+    const ruleId = Number(params.id);
+
+    return HttpResponse.json(apiResponse({
+      id: ruleId,
+      name: '자동 입과 규칙',
+      description: null,
+      trigger: 'USER_JOIN',
+      departmentId: null,
+      departmentName: null,
+      courseTimeId: 1,
+      courseTimeTitle: 'React 기초부터 실전까지 - 2024년 1기',
+      isActive: false,
+      sortOrder: 0,
+      createdAt: '2026-01-05T10:00:00',
+      updatedAt: new Date().toISOString(),
+    }));
+  }),
 ];
