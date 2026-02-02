@@ -128,7 +128,7 @@ export function FeatureSettingsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="기능 On/Off"
         description="테넌트에서 사용할 기능을 활성화하거나 비활성화합니다"

@@ -1439,7 +1439,7 @@ export function UsersContent() {
 // 기존 UsersPage - 호환성 유지용 (독립 페이지로 사용 시)
 export function UsersPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="사용자 관리"
         description="테넌트 내 사용자를 관리합니다"

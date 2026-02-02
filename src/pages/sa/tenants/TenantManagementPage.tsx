@@ -11,7 +11,7 @@ import { BillingContent } from '../billing/BillingPage';
  */
 export function TenantManagementPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="테넌트 관리"
         description="테넌트 목록과 구독을 한 곳에서 관리합니다"

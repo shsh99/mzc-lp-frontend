@@ -305,7 +305,7 @@ export function LogsPage() {
   }, [categoryTab]);
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="이력 분석 및 로그 관리"
         description="테넌트 활동 로그를 조회하고 분석합니다"

@@ -761,7 +761,7 @@ export function LayoutSettingsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="브랜딩 설정"
         description="플랫폼의 브랜드 아이덴티티와 레이아웃을 커스터마이징합니다"

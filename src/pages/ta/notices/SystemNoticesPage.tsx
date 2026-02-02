@@ -219,7 +219,7 @@ export function SystemNoticesContent() {
 // 독립 페이지 컴포넌트
 export function SystemNoticesPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="시스템 공지사항"
         description="시스템 관리자가 배포한 공지사항입니다"

@@ -257,7 +257,7 @@ export function DistributionContent() {
 // 기존 NoticeDistributionPage - 호환성 유지용 (독립 페이지로 사용 시)
 export function NoticeDistributionPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="공지사항 배포 관리"
         description="공지사항의 사용자별 배포 현황을 관리합니다"

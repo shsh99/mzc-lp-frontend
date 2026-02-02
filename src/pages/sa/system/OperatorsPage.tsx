@@ -54,7 +54,7 @@ export function OperatorsPage() {
   // 로딩 상태
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <AdminPageHeader
           title="운영자 관리"
           description="시스템 운영자(SYSTEM_ADMIN)를 관리합니다"
@@ -71,7 +71,7 @@ export function OperatorsPage() {
   // 에러 상태
   if (isError) {
     return (
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <AdminPageHeader
           title="운영자 관리"
           description="시스템 운영자(SYSTEM_ADMIN)를 관리합니다"
@@ -94,7 +94,7 @@ export function OperatorsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="운영자 관리"
         description="시스템 운영자(SYSTEM_ADMIN)를 관리합니다"

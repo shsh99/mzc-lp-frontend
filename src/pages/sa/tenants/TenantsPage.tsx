@@ -674,7 +674,7 @@ export function TenantsContent() {
 // 기존 TenantsPage - 호환성 유지용 (독립 페이지로 사용 시)
 export function TenantsPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="테넌트 관리"
         description="시스템에 등록된 테넌트를 관리합니다"

@@ -177,7 +177,7 @@ export function TenantCategoryPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="카테고리 관리"
         description="테넌트의 커스텀 강의 카테고리를 관리합니다"

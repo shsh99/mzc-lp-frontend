@@ -93,7 +93,7 @@ export function OperatorsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="운영자 관리"
         description="테넌트 운영자를 관리합니다"

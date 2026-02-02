@@ -50,7 +50,7 @@ export function BrandingSettingsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="글로벌 브랜딩 설정"
         description="플랫폼 전체에 적용되는 브랜딩을 설정합니다"

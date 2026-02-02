@@ -220,7 +220,7 @@ export function TenantStatusContent() {
 // 기존 TenantStatusPage - 호환성 유지용 (독립 페이지로 사용 시)
 export function TenantStatusPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="전체 현황 조회"
         description="모든 테넌트의 사용 현황을 모니터링합니다"

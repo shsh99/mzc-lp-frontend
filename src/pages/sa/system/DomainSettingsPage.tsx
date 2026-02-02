@@ -78,7 +78,7 @@ export function DomainSettingsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="도메인 관리"
         description="시스템에 등록된 테넌트 도메인을 관리합니다"
@@ -117,7 +117,7 @@ export function DomainSettingsPage() {
 
                 return (
                   <Card key={domain.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
+                    <CardContent className="p-3 sm:p-4 md:p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="p-3 bg-brand-primary/10 rounded-lg">
                           <Globe className="h-6 w-6 text-brand-primary" />

@@ -57,7 +57,7 @@ export function UserManagementSettingsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="사용자 관리 설정"
         description="사용자 등록 및 관리 정책을 설정합니다"

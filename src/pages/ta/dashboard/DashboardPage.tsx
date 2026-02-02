@@ -40,7 +40,7 @@ export function DashboardPage() {
 
   if (error) {
     return (
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <AdminPageHeader
           title="대시보드"
           description="테넌트 현황을 한눈에 확인합니다"
@@ -68,7 +68,7 @@ export function DashboardPage() {
   const dailyTrend = data?.dailyTrend ?? [];
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="대시보드"
         description={`테넌트 현황을 한눈에 확인합니다 • ${selectedRangeLabel} 기준`}

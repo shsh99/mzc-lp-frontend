@@ -177,7 +177,7 @@ export function TenantDefaultsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="테넌트 기본값 설정"
         description="새 테넌트 생성 시 적용되는 기본값을 설정합니다"

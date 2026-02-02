@@ -311,7 +311,7 @@ export const BulkAccountCreationPage = () => {
 
             {/* 템플릿 다운로드 */}
             <Card>
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4 md:p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div

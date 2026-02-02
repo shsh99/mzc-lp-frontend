@@ -198,7 +198,7 @@ export function BillingContent() {
 // 기존 BillingPage - 호환성 유지용 (독립 페이지로 사용 시)
 export function BillingPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="구독 관리"
         description="테넌트 구독 및 결제 현황을 관리합니다"

@@ -519,7 +519,7 @@ export function NotificationTemplatesContent() {
 // 기존 NotificationTemplatesPage - 호환성 유지용 (독립 페이지로 사용 시)
 export function NotificationTemplatesPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="알림 템플릿 관리"
         description="시스템에서 발송되는 알림 템플릿을 관리합니다"

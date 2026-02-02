@@ -11,7 +11,7 @@ import { DepartmentsContent } from './DepartmentManagementPage';
  */
 export function UserAndDepartmentPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="사용자 및 부서 관리"
         description="테넌트 내 사용자와 부서 구조를 관리합니다"

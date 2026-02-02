@@ -578,7 +578,7 @@ export function NoticesContent() {
 // 기존 TenantNoticesPage - 호환성 유지용 (독립 페이지로 사용 시)
 export function TenantNoticesPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary">공지사항 관리</h1>

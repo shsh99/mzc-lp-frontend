@@ -193,7 +193,7 @@ export function SystemSettingsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="시스템 설정"
         description="플랫폼 전역 시스템 설정을 관리합니다"

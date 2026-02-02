@@ -212,8 +212,8 @@ function DataTable<TData, TValue>({
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="min-w-[640px]">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -270,15 +270,15 @@ function DataTable<TData, TValue>({
 
       {/* Pagination */}
       {showPagination && (
-        <div className="flex items-center justify-between px-2">
-          <div className="flex-1 text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+          <div className="text-sm text-muted-foreground text-center sm:text-left">
             {labels.rowsSelected
               ?.replace('{selected}', String(table.getFilteredSelectedRowModel().rows.length))
               .replace('{total}', String(table.getFilteredRowModel().rows.length))}
           </div>
-          <div className="flex items-center space-x-6 lg:space-x-8">
-            <div className="flex items-center space-x-2">
-              <p className="text-sm font-medium">{labels.rowsPerPage}</p>
+          <div className="flex flex-wrap items-center justify-center gap-4 lg:gap-8">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium hidden sm:block">{labels.rowsPerPage}</p>
               <Select
                 value={`${table.getState().pagination.pageSize}`}
                 onValueChange={(value) => {

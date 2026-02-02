@@ -15,7 +15,7 @@ import { NotificationTemplatesContent } from '../system/NotificationTemplatesPag
  */
 export function NoticeAndNotificationPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="공지 및 알림 관리"
         description="공지사항, 배포 현황, 알림 템플릿을 한 곳에서 관리합니다"

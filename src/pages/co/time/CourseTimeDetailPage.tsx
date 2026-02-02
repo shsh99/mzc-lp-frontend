@@ -645,7 +645,7 @@ export function CourseTimeDetailPage({ language = 'ko' }: Readonly<CourseTimeDet
               </Card>
 
               {/* 정원 현황 */}
-              <Card className="p-6">
+              <Card className="p-3 sm:p-4 md:p-6">
                 <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
                   <Users size={18} className="text-text-secondary" />
                   {getText('capacityInfo')}
@@ -924,7 +924,7 @@ export function CourseTimeDetailPage({ language = 'ko' }: Readonly<CourseTimeDet
               </Card>
 
               {/* 진행 정보 */}
-              <Card className="p-6">
+              <Card className="p-3 sm:p-4 md:p-6">
                 <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
                   <Play size={18} className="text-text-secondary" />
                   {getText('deliveryInfo')}

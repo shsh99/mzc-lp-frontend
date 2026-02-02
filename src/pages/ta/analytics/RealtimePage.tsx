@@ -76,7 +76,7 @@ export function RealtimePage() {
   const contentViewCount = stats?.byActivityType?.CONTENT_VIEW || 0;
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="실시간 데이터 현황"
         description="현재 플랫폼 사용 현황을 실시간으로 모니터링합니다"

@@ -32,7 +32,7 @@ export function DashboardPage() {
 
   if (error) {
     return (
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <AdminPageHeader
           title="대시보드"
           description="시스템 전체 현황을 확인합니다"
@@ -55,7 +55,7 @@ export function DashboardPage() {
   const recentTenants = data?.recentTenants ?? [];
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="대시보드"
         description={`시스템 전체 현황을 확인합니다 • ${selectedRangeLabel} 기준`}

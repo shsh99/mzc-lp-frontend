@@ -167,7 +167,7 @@ export function ExportPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="통계 조회 및 내보내기"
         description="분석 데이터를 다양한 형식으로 내보낼 수 있습니다"

@@ -143,7 +143,7 @@ export function DomainSettingsPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <AdminPageHeader
           title="도메인 설정"
           description="테넌트 도메인을 관리합니다"
@@ -157,7 +157,7 @@ export function DomainSettingsPage() {
 
   if (!settings) {
     return (
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <AdminPageHeader
           title="도메인 설정"
           description="테넌트 도메인을 관리합니다"
@@ -172,7 +172,7 @@ export function DomainSettingsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="도메인 설정"
         description="테넌트 도메인을 관리합니다"

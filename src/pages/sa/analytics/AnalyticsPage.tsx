@@ -28,7 +28,7 @@ export function AnalyticsPage() {
   const selectedTenant = tenants.find((t) => t.tenantId === selectedTenantId);
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="데이터 및 로그 분석"
         description="플랫폼 전체 사용량, 활동 현황 및 시스템 로그를 분석합니다"

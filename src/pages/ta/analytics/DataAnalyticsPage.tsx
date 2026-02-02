@@ -980,7 +980,7 @@ function ExportTab() {
 
 export function DataAnalyticsPage() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="데이터 및 통계"
         description="실시간 현황, 활동 로그, 통계 내보내기를 한 곳에서 관리합니다"

@@ -135,7 +135,7 @@ const toFormState = (data: TenantDetail): TenantFormState => ({
 // 로딩 스켈레톤
 function TenantDetailSkeleton() {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <div className="mb-6">
         <Skeleton className="h-8 w-48 mb-2" />
         <Skeleton className="h-4 w-32" />
@@ -164,7 +164,7 @@ function TenantDetailSkeleton() {
 // 에러 UI
 function TenantDetailError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col items-center justify-center py-12">
@@ -292,7 +292,7 @@ export function TenantDetailPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title={formState.name}
         description={`테넌트 코드: ${formState.code}`}

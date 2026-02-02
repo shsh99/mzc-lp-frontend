@@ -239,7 +239,7 @@ export function NoticeInboxPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
@@ -249,7 +249,7 @@ export function NoticeInboxPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="공지사항"
         description="시스템 공지를 확인하고 운영자/사용자에게 공지를 발송합니다"

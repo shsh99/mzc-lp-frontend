@@ -98,7 +98,7 @@ export function PermissionsPage() {
       })).filter(category => category.items.length > 0);
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       <AdminPageHeader
         title="접근 권한 안내"
         description="역할별 시스템 접근 권한을 확인합니다"
