@@ -67,26 +67,66 @@ const errorResponse = (message: string, code: string = 'ERROR') => ({
   error: { code, message },
 });
 
+// 과정별 운영 중인 차수 수를 계산하는 헬퍼
+const getRunningTimeCount = (courseId: number) => {
+  // course.id와 program.id가 일치하는 차수 중 RECRUITING 또는 ONGOING 상태인 것을 카운트
+  return mockCourseTimes.filter(
+    time => time.program?.id === courseId &&
+    (time.status === 'RECRUITING' || time.status === 'ONGOING')
+  ).length;
+};
+
+// 과정별 운영 기간을 계산하는 헬퍼 (가장 빠른 시작일 ~ 가장 늦은 종료일)
+const getCoursePeriod = (courseId: number) => {
+  const courseTimes = mockCourseTimes.filter(time => time.program?.id === courseId);
+  if (courseTimes.length === 0) {
+    return { startDate: null, endDate: null };
+  }
+
+  const startDates = courseTimes.map(t => t.classStartDate).filter(Boolean).sort();
+  const endDates = courseTimes.map(t => t.classEndDate).filter(Boolean).sort();
+
+  return {
+    startDate: startDates.length > 0 ? startDates[0] : null,
+    endDate: endDates.length > 0 ? endDates[endDates.length - 1] : null,
+  };
+};
+
 // Course 백엔드 응답 형식으로 변환하는 헬퍼
-const transformCourseToBackend = (course: (typeof mockCourses)[0]) => ({
-  courseId: course.id,
-  title: course.title,
-  description: course.description,
-  thumbnailUrl: course.thumbnailUrl,
-  level: course.level,
-  type: 'ONLINE',
-  estimatedHours: Math.floor(course.duration / 60),
-  categoryId: course.categoryId,
-  tags: [],
-  createdAt: course.createdAt,
-  updatedAt: course.createdAt,
-  // Mock 추가 필드 (프론트엔드에서 활용)
-  rating: course.rating,
-  reviewCount: course.reviewCount,
-  enrollmentCount: course.enrollmentCount,
-  instructorId: course.instructorId,
-  instructorName: course.instructorName,
-});
+const transformCourseToBackend = (course: (typeof mockCourses)[0]) => {
+  const period = getCoursePeriod(course.id);
+  return {
+    id: course.id, // CourseRegistrationResponse의 id 필드
+    courseId: course.id,
+    title: course.title,
+    description: course.description,
+    thumbnailUrl: course.thumbnailUrl,
+    level: course.level,
+    type: 'ONLINE',
+    estimatedHours: Math.floor(course.duration / 60),
+    categoryId: course.categoryId,
+    categoryName: course.categoryName, // 카테고리명 추가
+    status: 'REGISTERED', // 승인된 과정 상태
+    creatorId: course.instructorId, // 생성자 ID
+    creatorName: course.instructorName, // 생성자명 추가
+    ownerId: course.instructorId,
+    ownerName: course.instructorName,
+    ownerEmail: null,
+    snapshotId: null,
+    courseStartDate: period.startDate, // 운영 시작일
+    courseEndDate: period.endDate, // 운영 종료일
+    timeCount: getRunningTimeCount(course.id), // 운영 중인 차수 수 추가
+    tags: [],
+    createdAt: course.createdAt,
+    updatedAt: course.createdAt,
+    // Mock 추가 필드 (프론트엔드에서 활용)
+    rating: course.rating,
+    reviewCount: course.reviewCount,
+    enrollmentCount: course.enrollmentCount,
+    instructorId: course.instructorId,
+    instructorName: course.instructorName,
+  };
+};
 
 export const handlers = [
   // ========== Auth ==========
@@ -643,10 +683,50 @@ export const handlers = [
   }),
 
   // ========== Courses ==========
-  http.get('/api/courses', async () => {
+  http.get('/api/courses', async ({ request }) => {
     await delay(50);
-    const transformedCourses = mockCourses.map(transformCourseToBackend);
-    return HttpResponse.json(apiResponse(paginatedResponse(transformedCourses)));
+    const url = new URL(request.url);
+    const keyword = url.searchParams.get('keyword');
+    const categoryId = url.searchParams.get('categoryId');
+    const level = url.searchParams.get('level');
+    const type = url.searchParams.get('type');
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+
+    // 필터링
+    let filteredCourses = [...mockCourses];
+
+    // 키워드 검색 (제목, 설명, 생성자명)
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      filteredCourses = filteredCourses.filter(course =>
+        course.title.toLowerCase().includes(lowerKeyword) ||
+        course.description?.toLowerCase().includes(lowerKeyword) ||
+        course.instructorName?.toLowerCase().includes(lowerKeyword)
+      );
+    }
+
+    // 카테고리 필터
+    if (categoryId) {
+      filteredCourses = filteredCourses.filter(course =>
+        course.categoryId === Number(categoryId)
+      );
+    }
+
+    // 레벨 필터
+    if (level) {
+      filteredCourses = filteredCourses.filter(course =>
+        course.level === level
+      );
+    }
+
+    // 타입 필터 (현재 mock 데이터에는 type이 없으므로 ONLINE으로 가정)
+    if (type && type !== 'ONLINE') {
+      filteredCourses = []; // ONLINE이 아닌 타입은 빈 배열
+    }
+
+    const transformedCourses = filteredCourses.map(transformCourseToBackend);
+    return HttpResponse.json(apiResponse(paginatedResponse(transformedCourses, page, size)));
   }),
 
   http.get('/api/courses/my', async () => {
@@ -668,10 +748,311 @@ export const handlers = [
     }));
   }),
 
+  // 과정 커리큘럼 계층 구조 조회
+  http.get('/api/courses/:courseId/items/hierarchy', async ({ params }) => {
+    await delay(30);
+    const courseId = Number(params.courseId);
+
+    // 과정별 커리큘럼 데이터
+    const curriculumMap: Record<number, Array<{
+      itemId: number;
+      itemName: string;
+      depth: number;
+      learningObjectId: number | null;
+      isFolder: boolean;
+      displayName: string | null;
+      description: string | null;
+      children: Array<{
+        itemId: number;
+        itemName: string;
+        depth: number;
+        learningObjectId: number | null;
+        isFolder: boolean;
+        displayName: string | null;
+        description: string | null;
+        children: never[];
+      }>;
+    }>> = {
+      // React 기초부터 실전까지
+      1: [
+        {
+          itemId: 101,
+          itemName: '1. React 기초',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'React 기초',
+          description: 'React의 기본 개념을 학습합니다.',
+          children: [
+            { itemId: 111, itemName: 'React란 무엇인가?', depth: 1, learningObjectId: 1001, isFolder: false, displayName: null, description: 'React 프레임워크 소개', children: [] },
+            { itemId: 112, itemName: 'JSX 문법 이해하기', depth: 1, learningObjectId: 1002, isFolder: false, displayName: null, description: 'JSX 기본 문법 학습', children: [] },
+            { itemId: 113, itemName: '컴포넌트의 이해', depth: 1, learningObjectId: 1003, isFolder: false, displayName: null, description: '함수형 컴포넌트와 클래스 컴포넌트', children: [] },
+          ],
+        },
+        {
+          itemId: 102,
+          itemName: '2. React Hooks',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'React Hooks',
+          description: 'React Hooks를 활용한 상태 관리',
+          children: [
+            { itemId: 121, itemName: 'useState 훅', depth: 1, learningObjectId: 1004, isFolder: false, displayName: null, description: '상태 관리의 기초', children: [] },
+            { itemId: 122, itemName: 'useEffect 훅', depth: 1, learningObjectId: 1005, isFolder: false, displayName: null, description: '사이드 이펙트 처리', children: [] },
+            { itemId: 123, itemName: 'Custom Hooks 만들기', depth: 1, learningObjectId: 1006, isFolder: false, displayName: null, description: '재사용 가능한 로직 분리', children: [] },
+          ],
+        },
+        {
+          itemId: 103,
+          itemName: '3. 실전 프로젝트',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '실전 프로젝트',
+          description: '배운 내용을 활용한 프로젝트',
+          children: [
+            { itemId: 131, itemName: 'Todo 앱 만들기', depth: 1, learningObjectId: 1007, isFolder: false, displayName: null, description: 'CRUD 기능 구현', children: [] },
+            { itemId: 132, itemName: '날씨 앱 만들기', depth: 1, learningObjectId: 1008, isFolder: false, displayName: null, description: 'API 연동 실습', children: [] },
+          ],
+        },
+      ],
+      // TypeScript 마스터 클래스
+      2: [
+        {
+          itemId: 201,
+          itemName: '1. TypeScript 기초',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'TypeScript 기초',
+          description: 'TypeScript의 기본 개념',
+          children: [
+            { itemId: 211, itemName: '타입 시스템 이해', depth: 1, learningObjectId: 2001, isFolder: false, displayName: null, description: '기본 타입과 타입 추론', children: [] },
+            { itemId: 212, itemName: '인터페이스와 타입', depth: 1, learningObjectId: 2002, isFolder: false, displayName: null, description: '인터페이스 정의와 활용', children: [] },
+          ],
+        },
+        {
+          itemId: 202,
+          itemName: '2. 고급 타입',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '고급 타입',
+          description: 'TypeScript 고급 기능',
+          children: [
+            { itemId: 221, itemName: '제네릭 활용', depth: 1, learningObjectId: 2003, isFolder: false, displayName: null, description: '재사용 가능한 타입 정의', children: [] },
+            { itemId: 222, itemName: '유틸리티 타입', depth: 1, learningObjectId: 2004, isFolder: false, displayName: null, description: 'Partial, Pick, Omit 등', children: [] },
+            { itemId: 223, itemName: '조건부 타입', depth: 1, learningObjectId: 2005, isFolder: false, displayName: null, description: '타입 레벨 프로그래밍', children: [] },
+          ],
+        },
+      ],
+      // AWS 클라우드 입문
+      3: [
+        {
+          itemId: 301,
+          itemName: '1. AWS 소개',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'AWS 소개',
+          description: 'AWS 클라우드 서비스 개요',
+          children: [
+            { itemId: 311, itemName: 'AWS란 무엇인가?', depth: 1, learningObjectId: 3001, isFolder: false, displayName: null, description: 'AWS 클라우드 소개', children: [] },
+            { itemId: 312, itemName: 'AWS 계정 생성', depth: 1, learningObjectId: 3002, isFolder: false, displayName: null, description: '계정 생성 및 설정', children: [] },
+          ],
+        },
+        {
+          itemId: 302,
+          itemName: '2. 핵심 서비스',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '핵심 서비스',
+          description: 'AWS 주요 서비스 학습',
+          children: [
+            { itemId: 321, itemName: 'EC2 인스턴스', depth: 1, learningObjectId: 3003, isFolder: false, displayName: null, description: '가상 서버 운영', children: [] },
+            { itemId: 322, itemName: 'S3 스토리지', depth: 1, learningObjectId: 3004, isFolder: false, displayName: null, description: '객체 스토리지 활용', children: [] },
+            { itemId: 323, itemName: 'RDS 데이터베이스', depth: 1, learningObjectId: 3005, isFolder: false, displayName: null, description: '관계형 DB 서비스', children: [] },
+          ],
+        },
+      ],
+      // Python 데이터 분석
+      4: [
+        {
+          itemId: 401,
+          itemName: '1. Python 기초',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'Python 기초',
+          description: '데이터 분석을 위한 Python',
+          children: [
+            { itemId: 411, itemName: 'Python 환경 설정', depth: 1, learningObjectId: 4001, isFolder: false, displayName: null, description: 'Anaconda 설치', children: [] },
+            { itemId: 412, itemName: '기본 문법 복습', depth: 1, learningObjectId: 4002, isFolder: false, displayName: null, description: 'Python 기본 문법', children: [] },
+          ],
+        },
+        {
+          itemId: 402,
+          itemName: '2. 데이터 분석 라이브러리',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '데이터 분석 라이브러리',
+          description: 'pandas, numpy 활용',
+          children: [
+            { itemId: 421, itemName: 'NumPy 기초', depth: 1, learningObjectId: 4003, isFolder: false, displayName: null, description: '배열 연산', children: [] },
+            { itemId: 422, itemName: 'Pandas DataFrame', depth: 1, learningObjectId: 4004, isFolder: false, displayName: null, description: '데이터 조작', children: [] },
+            { itemId: 423, itemName: '데이터 시각화', depth: 1, learningObjectId: 4005, isFolder: false, displayName: null, description: 'Matplotlib, Seaborn', children: [] },
+          ],
+        },
+      ],
+      // ========== 삼성 러닝센터 과정 ==========
+      // 삼성 리더십 과정
+      101: [
+        {
+          itemId: 10101,
+          itemName: '1. 리더십 기초',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '리더십 기초',
+          description: '리더십의 기본 개념과 원칙',
+          children: [
+            { itemId: 10111, itemName: '리더십이란 무엇인가?', depth: 1, learningObjectId: 101001, isFolder: false, displayName: null, description: '리더십 개념 이해', children: [] },
+            { itemId: 10112, itemName: '삼성 리더십 원칙', depth: 1, learningObjectId: 101002, isFolder: false, displayName: null, description: '삼성의 핵심 가치', children: [] },
+            { itemId: 10113, itemName: '셀프 리더십', depth: 1, learningObjectId: 101003, isFolder: false, displayName: null, description: '자기 관리의 중요성', children: [] },
+          ],
+        },
+        {
+          itemId: 10102,
+          itemName: '2. 팀 리더십',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '팀 리더십',
+          description: '효과적인 팀 이끌기',
+          children: [
+            { itemId: 10121, itemName: '팀 빌딩', depth: 1, learningObjectId: 101004, isFolder: false, displayName: null, description: '효과적인 팀 구성', children: [] },
+            { itemId: 10122, itemName: '동기 부여', depth: 1, learningObjectId: 101005, isFolder: false, displayName: null, description: '팀원 동기 부여 전략', children: [] },
+            { itemId: 10123, itemName: '갈등 관리', depth: 1, learningObjectId: 101006, isFolder: false, displayName: null, description: '팀 내 갈등 해결', children: [] },
+          ],
+        },
+      ],
+      // 디지털 트랜스포메이션 기초
+      102: [
+        {
+          itemId: 10201,
+          itemName: '1. DX 개요',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'DX 개요',
+          description: '디지털 전환의 이해',
+          children: [
+            { itemId: 10211, itemName: 'DX란 무엇인가?', depth: 1, learningObjectId: 102001, isFolder: false, displayName: null, description: '디지털 전환 개념', children: [] },
+            { itemId: 10212, itemName: 'DX 성공 사례', depth: 1, learningObjectId: 102002, isFolder: false, displayName: null, description: '글로벌 DX 사례 분석', children: [] },
+          ],
+        },
+        {
+          itemId: 10202,
+          itemName: '2. DX 전략',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: 'DX 전략',
+          description: '디지털 전환 전략 수립',
+          children: [
+            { itemId: 10221, itemName: 'DX 로드맵', depth: 1, learningObjectId: 102003, isFolder: false, displayName: null, description: '전환 로드맵 설계', children: [] },
+            { itemId: 10222, itemName: '조직 변화 관리', depth: 1, learningObjectId: 102004, isFolder: false, displayName: null, description: '변화 관리 전략', children: [] },
+            { itemId: 10223, itemName: 'DX 기술 트렌드', depth: 1, learningObjectId: 102005, isFolder: false, displayName: null, description: 'AI, 클라우드, 데이터', children: [] },
+          ],
+        },
+      ],
+      // 반도체 공정 이해
+      103: [
+        {
+          itemId: 10301,
+          itemName: '1. 반도체 기초',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '반도체 기초',
+          description: '반도체의 기본 원리',
+          children: [
+            { itemId: 10311, itemName: '반도체란?', depth: 1, learningObjectId: 103001, isFolder: false, displayName: null, description: '반도체 기본 개념', children: [] },
+            { itemId: 10312, itemName: '반도체 종류', depth: 1, learningObjectId: 103002, isFolder: false, displayName: null, description: '메모리, 비메모리', children: [] },
+            { itemId: 10313, itemName: '반도체 산업 동향', depth: 1, learningObjectId: 103003, isFolder: false, displayName: null, description: '글로벌 시장 분석', children: [] },
+          ],
+        },
+        {
+          itemId: 10302,
+          itemName: '2. 반도체 공정',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '반도체 공정',
+          description: '제조 공정 이해',
+          children: [
+            { itemId: 10321, itemName: '웨이퍼 제조', depth: 1, learningObjectId: 103004, isFolder: false, displayName: null, description: '웨이퍼 생산 과정', children: [] },
+            { itemId: 10322, itemName: '포토리소그래피', depth: 1, learningObjectId: 103005, isFolder: false, displayName: null, description: '노광 공정', children: [] },
+            { itemId: 10323, itemName: '에칭과 증착', depth: 1, learningObjectId: 103006, isFolder: false, displayName: null, description: '식각 및 증착 공정', children: [] },
+            { itemId: 10324, itemName: '패키징', depth: 1, learningObjectId: 103007, isFolder: false, displayName: null, description: '후공정 이해', children: [] },
+          ],
+        },
+      ],
+      // 글로벌 비즈니스 커뮤니케이션
+      104: [
+        {
+          itemId: 10401,
+          itemName: '1. 비즈니스 영어',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '비즈니스 영어',
+          description: '업무용 영어 커뮤니케이션',
+          children: [
+            { itemId: 10411, itemName: '이메일 작성법', depth: 1, learningObjectId: 104001, isFolder: false, displayName: null, description: '효과적인 영문 이메일', children: [] },
+            { itemId: 10412, itemName: '회의 영어', depth: 1, learningObjectId: 104002, isFolder: false, displayName: null, description: '미팅 진행 표현', children: [] },
+          ],
+        },
+        {
+          itemId: 10402,
+          itemName: '2. 프레젠테이션',
+          depth: 0,
+          learningObjectId: null,
+          isFolder: true,
+          displayName: '프레젠테이션',
+          description: '효과적인 발표 기술',
+          children: [
+            { itemId: 10421, itemName: '발표 구조화', depth: 1, learningObjectId: 104003, isFolder: false, displayName: null, description: '논리적 발표 구성', children: [] },
+            { itemId: 10422, itemName: '시각 자료 활용', depth: 1, learningObjectId: 104004, isFolder: false, displayName: null, description: '효과적인 슬라이드', children: [] },
+            { itemId: 10423, itemName: 'Q&A 대응', depth: 1, learningObjectId: 104005, isFolder: false, displayName: null, description: '질의응답 전략', children: [] },
+          ],
+        },
+      ],
+    };
+
+    const curriculum = curriculumMap[courseId] || [];
+    return HttpResponse.json(apiResponse(curriculum));
+  }),
+
   // ========== Course Times ==========
-  http.get('/api/times', async () => {
+  http.get('/api/times', async ({ request }) => {
     await delay(50);
-    return HttpResponse.json(apiResponse(paginatedResponse(mockCourseTimes)));
+    const url = new URL(request.url);
+    const courseIdParam = url.searchParams.get('courseId');
+    const page = Number(url.searchParams.get('page')) || 0;
+    const size = Number(url.searchParams.get('size')) || 10;
+
+    // courseId가 제공된 경우 해당 과정의 차수만 필터링
+    let filteredTimes = mockCourseTimes;
+    if (courseIdParam) {
+      const courseId = Number(courseIdParam);
+      filteredTimes = mockCourseTimes.filter(time => time.program?.id === courseId);
+    }
+
+    return HttpResponse.json(apiResponse(paginatedResponse(filteredTimes, page, size)));
   }),
 
   http.get('/api/times/:id', async ({ params }) => {
