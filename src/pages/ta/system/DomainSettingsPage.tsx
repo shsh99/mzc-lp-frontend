@@ -17,6 +17,8 @@ import { Switch } from '@/components/common/Switch';
 import { domainSettingsService } from '@/services/ta/domainSettingsService';
 import type { TenantDomainSettings } from '@/types/admin/domain.types';
 
+const SUBDOMAIN_SITE_BASE_URL = 'https://mzc-lp-frontend.vercel.app';
+
 export function DomainSettingsPage() {
   const [settings, setSettings] = useState<TenantDomainSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,15 +43,26 @@ export function DomainSettingsPage() {
     return settings.fullSubdomainUrl;
   };
 
+  const getResolvedSubdomain = () => {
+    if (!settings) return '';
+
+    const subdomain = settings.subdomain?.trim();
+    if (subdomain) return subdomain;
+
+    return settings.fullSubdomainUrl?.split('.')[0] ?? '';
+  };
+
   // 사이트 열기 URL (홈 화면으로 이동)
   const getSiteUrl = () => {
     if (!settings) return '';
+    const subdomain = getResolvedSubdomain();
     if (isDev) {
       // 개발 환경: localhost:3000/subdomain/tu/b2c/
-      return `${window.location.origin}/${settings.subdomain}/tu/b2c/`;
+      return subdomain ? `${window.location.origin}/${subdomain}/tu/b2c/` : '';
     }
     // 운영 환경: subdomain.basedomain.com/tu/b2c/
-    return `https://${settings.fullSubdomainUrl}/tu/b2c/`;
+    if (!subdomain) return '';
+    return new URL(`/${subdomain}/tu/b2c/`, SUBDOMAIN_SITE_BASE_URL).toString();
   };
 
   // 커스텀 도메인 사이트 열기 URL
